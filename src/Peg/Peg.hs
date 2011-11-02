@@ -1,6 +1,6 @@
 {-# Language GADTs #-}
 
-module Peg (
+module Peg.Peg (
   PegGrammar(..),
   pegMatch,
   pegMatch'

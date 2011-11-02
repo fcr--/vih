@@ -1,7 +1,7 @@
 --module PegExample where
-module Main where
+module Peg.PegExample where
 
-import Peg
+import Peg.Peg
 
 -- Examples:
 

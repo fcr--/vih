@@ -1,7 +1,9 @@
+module Peg.PegGrammar where
+
 import Debug.Trace
 
 import Char
-import Peg
+import Peg.Peg
 
 data PegAst = Node String [PegAst]
 	    | Terminal String -- matched text
