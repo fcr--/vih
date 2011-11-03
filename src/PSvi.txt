@@ -1,0 +1,461 @@
+Basic types:
+
+  string = '"' ('\\' . / !('\\' / '"') .)* '"';
+
+  int = '-'? ('0'..'9'+);
+
+  code = '{' (atom blank+)* '}';
+
+  list of objects (constructed with ']')
+
+  dictionary of objects (constructed with '>>')
+
+Operators (sorted by section):
+
+  operand stack manipulation:
+
+  pop:	obj pop -
+  exch:	obj1 obj2 exch obj2 obj1
+  dup:	obj1 dup obj1 obj1
+  copy:	obj1 obj2 .. objn n copy obj1 obj2 .. objn obj1 obj2 .. objn
+  index:	anyn .. any1 any0 n index anyn .. any1 any0 anyn
+  roll:	obj{n-1} .. obj{0} n j roll obj{(j-1)mod n} .. obj{0} obj{n-1} .. obj{j mod n}
+  count:	|- obj1 .. objn count |- obj1 .. objn n
+
+  arithmetic, math and relational:
+
+  +:	int1 int2 + int
+  -:	int1 int2 - int
+  *:	int1 int2 * int
+  mod:	int1 int2 mod int
+  div:	int1 int2 div int
+  neg:	int1 neg int
+  and:	int1 int2 and int
+  or:	int1 int2 or int
+  xor:	int1 int2 xor int
+  not:	int1 not int
+  eq:	obj1 obj2 eq int
+  ne:	obj1 obj2 ne int
+  ge:	obj1 obj2 ge int
+  gt:	obj1 obj2 gt int
+  le:	obj1 obj2 le int
+  lt:	obj1 obj2 lt int
+
+  control:
+
+  if:	cond proc if -
+  ifelse:	cond procTrue procFalse ifelse -
+  for:	initial increment limit proc for -
+  repeat:	int1 proc repeat -
+  loop:	proc loop -
+  exit:	- exit -
+  exec:	proc exec -
+  try:	proc try errmsg
+
+Operators (sorted by name):
+
+  [:	- [ mark
+
+    Pushes a mark object in the stack.
+
+  ]:	mark1 obj1 obj2 ... objn | list
+
+    Creates a new list of n elements, by popping the objects from the
+    topmost mark on the stack.
+
+  <<:	- << mark
+
+    Same as '[', just pushes a mark object.
+
+  >>:	mark1 key1 obj1 key2 obj2 ... keyn objn | dict
+
+    Creates a new dictionary with n mappings, by popping the objects from the
+    topmost mark on the stack.
+
+  +:	string1 string2 + string
+	code1 code2     + code
+	list1 list2     + list
+	int1 int2       + int
+
+    Concatenates two strings or two lists, joins two thunks of code, or adds
+    two integer numbers.
+
+    Example, doing: [ "foo" 42 ] [{var}] +
+    should be equal to: ["foo" 42 {var}]
+
+  -:	int1 int2 - int
+
+    Substract int2 from int1, and push back the result.
+
+  *:	int1 int2 * int
+
+    Multiply int1 by int2, and push back the result.
+
+  and:	int1 int2 and int
+
+    Do a bitwise and of int1 and int2, and push back the result.
+
+  begin:	dict begin -
+
+    Pushes dict on dictionary stack.
+
+  copy:	obj1 obj2 .. objn n copy obj1 obj2 .. objn obj1 obj2 .. objn
+
+    Duplicate top n elements.
+
+  count:	|- obj1 .. objn count |- obj1 .. objn n
+
+    Push the number of elements in the stack.
+
+  currentdict:	- currentdict dict
+
+    Push the current dictionary in the stack.
+
+  currentsystemparams:	- currentsystemparams dict
+
+    Pushes a dictionary with all the key/values of the current settings
+    on the application.
+
+  cvi:	string cvi int
+
+    Convert to int. May throw errors.
+
+  cvs:	obj cvs string
+
+    Converts any object to a string, showing a valid representation of itself.
+
+  cvx:  string cvx proc
+
+    Converts to proc (parsing the input as a program). May throw errors.
+
+  def:	key value def -
+
+    Associate key and value in current dictionary.
+
+  div:	int1 int2 div int
+
+    (Integer) Divide int1 by int2, and push back the result.
+
+  dup:	obj1 dup obj1 obj1
+
+    Pops an object and pushes it twice, in other words it's duplicated.
+
+  end:	- end -
+
+    Pop current dictionary off dictionary stack.
+
+  eq:	obj1 obj2 eq int
+
+    Pops two objects and pushes 0 or 1. It pushes 1 if both popped objects have
+    the same type and are equal on that type, it pushes 0 otherwise.
+
+  exch:	obj1 obj2 exch obj2 obj1
+
+    Exchange two top elemts.
+
+  exec:	proc exec -
+
+    Pops a procedure from the top of the stack, and executes it in the current
+    context.
+
+  exit:	- exit -
+
+    Breaks the innermost loop. The following operators are considered loops:
+    for, forall, loop, repeat.
+
+  filter:	dict proc   filter filteredDict
+		list proc   filter filteredList
+		string proc filter filteredString
+
+    Executes proc repeteadly while iterating throught the collection, pushing
+    them (in a similar fashion to forall), and if popping an integer. If that
+    integer is non-zero, then the previously pushed item is added to a new
+    collection.
+
+    Example: "hello" {"l" ne} filter                  =>   "heo"
+    Example: <<42 "foo" 3 "bar">> {pop 10 >} filter   =>   <<42 "foo">>
+    Example: [2 43 17 99 32] {2 mod} filter           =>   [43 17 99]
+
+  for:	initial increment limit proc for -
+
+    Excecutes the procedure proc repeatedly by passing it a sequence of values
+    from initial by steps of increment to limit. It's expected that initial,
+    increment and limit be int, and proc be code.
+
+    Example: 0 1 1 5 {add} for    =>   15
+
+  forall:	dict proc   forall -
+		string proc forall -
+		list proc   forall -
+
+    Executes proc repeteadly while iterating throught the collection.
+
+    If the first argument is a dictionary then for each key/value, it pushes
+    a key, its value, and runs an iteration.
+
+    If the first argument is a list, then for each element, it's pushed and
+    then and then proc is ran.
+
+    If the first argument is a string, then that string is splitted into a
+    list of one char substrings, and then forall is run like its argument
+    were a list.
+
+  get:	dict key     get value
+	string index get str
+	list index   get value
+
+    If the first argument is a dict, returns the associated key on the
+    dictionary, or throw an "undefined" error.
+
+    If the first argument is a string, return the 1 char substring at the
+    position identified by index. The index must be an int between 0 and
+    length(str)-1, or a "rangecheck" error ocurrs.
+
+    If it's a list, return the index-th element of the list. The index must
+    be an integer between 0 and length(list)-1, or a "rangecheck" error occurs.
+
+  getinterval:	list index count   getinterval sublist
+		string index count getinterval substring
+
+    TODO: write documentation.
+
+  globaldict:	- globaldict dict
+
+    Pushes back the global dictionary.
+
+  head:	list   head obj1
+	string head str1
+
+    Pops the string or the list from the stack, and pushes back a substring
+    with the first char of the original string, or the first element of the
+    list.
+
+  if:	cond proc if -
+
+    The procedure and the condition are popped (cond must be an int and proc a
+    thunk of code), and then proc is executed if cond is different than zero.
+
+  ifelse:	cond procTrue procFalse ifelse -
+
+    Pops cond, procTrue and procFalse. cond must be an int number. If cond is
+    not equal to zero, then run procTrue, otherwise run procFalse.
+
+  index:	anyn .. any1 any0 n index anyn .. any1 any0 anyn
+
+    Pops the non-negative int 'n' from the stack, counts back n positions from
+    the top of the stack, and pushes a copy of that element.
+
+  known:	dict key  known res
+		list elem known res
+
+    Pops a dict or a list, a key or an element, and push back 1 if the key was
+    present in the dictionary, or if the elem appears on the list.
+
+  length:	string length int
+		dict   length int
+		list   length int
+
+    Pops a string, dictionary or list, and then its length (number of chars if
+    a string, number of mappings of a dict, or elements on a list) is pushed
+    back.
+
+  load:	key load value
+
+    Searches for key in each dictionary of the dictionary stack, starting with
+    the topmost (current) dictionary. If the key is found, its corresponding
+    value is pushed back on the stack, otherwise an "undefined" error is
+    thrown.
+
+  loop:	proc loop -
+
+    Run loop an indefinite number of times, (until an "exit" condition occurs)
+
+  mod:	int1 int2 mod int
+
+    Divide int1 by int2 and push back the __remainder__ of that integer
+    division.
+
+  ne:	obj1 obj2 ne int
+
+    Pops two objects and pushes 0 or 1. It pushes 0 if both popped objects have
+    the same type and are equal on that type, it pushes 1 otherwise.
+
+  neg:	int1 neg int
+
+    Pops an int element, and pushes back its negative (0 minus that element).
+
+  not:	int1 not int
+
+    Pops an int element, and pushes back 1 if the element was zero, or 0 if the
+    element was different than zero.
+
+  null:	dict   null res
+	list   null res
+	string null res
+
+    Pops an element and pushes back 1 if the dictionary or list is empty, or
+    if the string is equal to "".
+
+  or:	int1 int2 or int
+
+    Do a bitwise or of int1 and int2, and push back the result.
+
+  pop:	obj pop -
+
+    Discards top elemnt of the stack.
+
+  put:	dict1 key value put dict
+
+    Pop a dictionary, a key and a value, and then it pushes a new dictionary
+    with the same contents of the old one but with key associated with value.
+
+  repeat:	int1 proc repeat -
+
+    Pop int1 and proc, and run proc int1 times.
+
+  roll:	obj{n-1} .. obj{0} n j roll obj{(j-1)mod n} .. obj{0} obj{n-1} .. obj{j mod n}
+
+    Perform circular shift of the objects on top of the stack.
+
+    Example: 1 2 3 4 5 6 7  5 2 roll          =>   1 2 6 7 3 4 5
+    Example: "a" "b" "c" "d"  3 -1 roll pop   =>   "a" "c" "d"
+
+  search:	haystack needle search post match pre 1  (if found)
+				       string 0          (otherwise)
+
+    Looks for the first occurrence of the string needle in the string haystack,
+    and returns the result from the search. If the search is successfull, the
+    haystack is split in three according to the searched needle. For instance:
+
+    "another day" "th" search   =>   "er day" "th" "an" 1
+    "foo bar" "A" search        =>   "foo bar" 0
+
+  setglobaldict:	dict setglobaldict -
+
+    Pops a dictionary from the top of the stack, and stores that dictionary
+    as the global one.
+
+  store:	key value store -
+
+    Searches for key in each dictionary on the dictionary stack, starting with
+    the topmost dictionary until key is found. If key is not found, then it
+    stores the key/value on the current dictionary, otherwise, the value
+    associated with the found key is replaced by this new value.
+
+  stringwidth:	string stringwidth width
+
+    Pops a string from the top of the dictionary, and returns the width it
+    would occupy when printing on the terminal. For printable chars, the width
+    is at least 0. Otherwise -1 is returned.
+
+    Example: "a" stringwidth    =>   1
+    Example: "あ" stringwidth   =>   2
+
+  tail:	string tail str
+	list   tail lst
+
+    Pops the string or the list from the stack, and pushes back a substring
+    discarding only the first char of the original string, or returns a list
+    with all the element of the list but the first.
+
+  try:	proc try ""      (if successful)
+		 errmsg  (if an error was thrown)
+
+    Same as exec, but after execution a string is pushed back. An empty string
+    if it finishes without throwing errors, or the error string in other cases.
+
+  type:	obj type str
+
+    Pops an object, and returns a string representation of its type.
+
+    String      -> "string"
+    Dictionary  -> "dict"
+    Integer     -> "int"
+    Mark type   -> "mark"  (created with [ and <<)
+    List        -> "list"
+    Code        -> "code"
+
+  undef:	dict key undef dict
+
+    Pops a key and a dict, and pushes back a copy of the dict without the key.
+    No error occurs if the key is not present on the dict.
+
+  where:	key where dict 1 (if found)
+			  0      (otherwise)
+
+    Pops a key, and searches from the top dictionary on the dictionary stack
+    up to the global dict. If it's found, this pushes back the dictionary
+    where it was found, and a 1. Otherwise it just pushes a 0.
+
+  xor:	int1 int2 xor int
+
+    Do a bitwise xor of int1 and int2, and push back the result.
+
+Operands ignored from the postscript standard:
+
+  =, ==, $error, abs, add, addglyph, aload, anchorsearch, arc, arcn, arct,
+  arcto, array, ashow, astore, atan, awidthshow, beginbfchar, beginbfrange,
+  begincidchar, begincidrange, begincmap, begincodespacerange, beginnotdefchar,
+  beginnotdefrange, beginrearrangedfont, beginusematrix, bind, bitshift,
+  bytesavailable, cachestatus, ceiling, charpath, ¿clear?, cleardictstack,
+  ¿cleartomark?, clip, clippath, cliprestore, clipsave, ¿closefile?, closepath,
+  colorimage, composefont, concat, concatmatrix, configurationerror, copypage,
+  cos, ¿countdictstack?, ¿countexecstack?, ¿counttomark?, cshow,
+  currentblackgeneration, currentcacheparams, currentcmykcolor, currentcolor,
+  currentcolorrendering, currentcolorscreen, currentcolorspace,
+  currentcolortransfer, currentdash, currentdevparams, currentfile,
+  currentflat, currentfont, currentglobal, currentgray, currentgstate,
+  currenthalftone, currentlinecap, currentlinejoin, currentlinewidth,
+  currentmaxtrix, currentmiterlimit, currentobjectformat, currentoverprint,
+  currentpacking, currentpagedevice, currentpoint, currentrgbcolor,
+  currentscreen, currentshared, currentsmoothness, currentstrokeadjust,
+  currenttransfer, ¿currenttrapparams?, currentundercolorremoval,
+  ¿currentuserparams?, curveto, cvlit, cvn, cvr, defaultmatrix, definefont,
+  defineresource, defineuserobject, ¿deletefile?, dict, dictfull, dictstack,
+  dictstackoverflow, ¿dictstackunderflow?, dtransform, echo, eexec, endbfchar,
+  endbfrange, endcidchar, endcidrange, endcmap, endcodespacerange,
+  endnotdefchar, endnotdefrange, endrearrangedfont, endusematrix, eoclip,
+  eofill, erasepage, ¿errordict?, execform, execstack, ¿execstackoverflow?,
+  execuserobject, executeonly, executive, exitserver, exp, false, ¿file?,
+  ¿filenameforall?, ¿fileposition?, fill, filter (another more useful proc is
+  implemented instead), findcolorrendering, ¿findencoding?, findfont,
+  findresource, flattenpath, floor, ¿flush?, ¿flushfile?, FontDirectory,
+  gcheck, GetHalftoneName, GetPageDeviceName, GetSubstituteCRD,
+  GlobalFontDirectory, glyphshow, grestore, grestoreall, gsave, gstate,
+  identmatrix, idiv, idtransform, image, imagemask, ineofill, infill, initclip,
+  initgraphics, initmatrix, instroke, internaldict, interrupt, inueofill,
+  inufill, inustroke, ¿invalidaccess?, ¿invalidexit?, ¿invalidfillaccess?,
+  invalidfont, invalidrestore, invertmatrix, ¿ioerror?, ISOLatin1Encoding,
+  itransform, kshow, languagelevel (or maybe returning -1 xD), limitcheck,
+  lineto, ln, log, makefont, makepattern, ¿mark? (useless), matrix, maxlength,
+  moveto, mul (* is implemented instead), newpath, noaccess, nocurrentpoint,
+  null (another version is implemented instead), nulldevice, packedarray,
+  pathbbox, pathforall, ¿print?, ¿printobject?, product, prompt, ¿pstack?,
+  ¿putinterval?, ¿quit?, ¿rand?, ¿rangecheck?, rcheck, rcurveto, ¿read?,
+  readhexstring, ¿readline?, readonly, ¿readstring?, realtime, rectclip,
+  rectfill, rectstroke, removeall, removeglyphs, ¿renamefile?, ¿resetfile?,
+  resourceforall, resourcestatus, restore, reversepath, revision, rlineto,
+  rmoveto, rootfont, rotate, round, rrand, ¿run?, save, scale, scalefont,
+  scheck, selectfont, serialnumber, serverdict, setbbox, setblackgeneration,
+  setcachedevice, setcachedevice2, setcachelimit, setcacheparams, setcharwidth,
+  setcmykcolor, setcolor, setcolorrendering, setcolorscreen, setcolorspace,
+  setcolortransfer, setdash, setdevparams, ¿setfileposition?, setflat, setfont,
+  setglobal, setgray, setgstate, sethalftone, sethsbcolor, setlinecap,
+  setlinejoin, setlinewidth, setmatrix, setmiterlimit, setobjectformat,
+  setoverprint, setpacking, setpagedevice, setpattern, setrgbcolor, setscreen,
+  setshared, setsmoothness, setstrokeadjust, ¿setsystemparams?, settransfer,
+  settrapparams, settrapzone, setucacheparams, setundercolorremoval,
+  setuserparams, setvmthreshold, shareddict, SharedFontDirectory, shfill,
+  show, showpage, sin, sqrt, srand, ¿stack?, stackoverflow, ¿stackunderflow?,
+  StandardEncoding, start, StartData, startjob, status, statusdict, stop,
+  stopped, stringwidth (similar idea, different characteristics), stroke,
+  strokepath, sub (- is used instead), ¿syntaxerror?, systemdict, timeout,
+  ¿token?, transform, translate, true, truncate, ¿typecheck?, uappend, ucache,
+  ucachestatus, ueofill, ufill, ¿undefined?, ¿undefinedfilename?,
+  undefinedresource, undefinedresult, undefinefont, undefineresource,
+  undefineuserobject, ¿unmatchedmark?, ¿unregistered?, upath, usecmap,
+  usefont, userdict, UserObjects, usertime, ustroke, ustrokepath, version,
+  VMerror, vmreclaim, vmstatus, wcheck, widthshow, ¿write?, writehexstring,
+  writeobject, ¿writestring?, xcheck, xshow, xyshow, yshow.
+
+  Those operands between question marks may be considered for addition.
