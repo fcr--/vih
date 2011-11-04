@@ -27,7 +27,7 @@ data PegGrammar a where
   -- matches if the child matches, not consuming any input:
   PegPosLA   :: (b -> a)      -> (PegGrammar b) -> PegGrammar a
   -- matches if the child doesn't match, not consuming any input:
-  PegNegLA   :: a             -> (PegGrammar a) -> PegGrammar a
+  PegNegLA   :: a             -> (PegGrammar b) -> PegGrammar a
   -- always match not consuming any input, may be used for other stuff...
   PegMeta    :: a                               -> PegGrammar a
 
