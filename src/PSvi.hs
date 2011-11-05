@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module PSvi (psParse,
              PSObject(..),
              psNewState,
@@ -8,12 +10,14 @@ import Peg.Peg
 import Char
 import Control.Applicative
 import qualified Data.Map as M
+import qualified Data.Bits as B
 
 data PSObject = PSString String
               | PSCode [PSObject]
               | PSInt Int
               | PSName String
               | PSMap (M.Map PSObject PSObject)
+              | PSList [PSObject]
               | PSInternalOp String (PSState -> IO (Either String PSState))
 
 instance Show PSObject where
@@ -22,6 +26,7 @@ instance Show PSObject where
     show (PSInt i)          = "PSInt " ++ show i
     show (PSName n)         = "PSName " ++ show n
     show (PSMap m)          = "PSMap " ++ show m
+    show (PSList l)         = "PSList " ++ show l
     show (PSInternalOp n _) = "PSInternalOp " ++ n
 
 instance Eq PSObject where
@@ -30,6 +35,7 @@ instance Eq PSObject where
     PSInt i == PSInt j                   = i == j
     PSName n == PSName m                 = n == m
     PSMap m1 == PSMap m2                 = m1 == m2
+    PSList l1 == PSList l2               = l1 == l2
     PSInternalOp o _ == PSInternalOp p _ = o == p
     _ == _                               = False
 
@@ -44,6 +50,8 @@ instance Ord PSObject where
     compare (PSName _) _                             = LT
     compare (PSMap m1) (PSMap m2)                    = compare m1 m2
     compare (PSMap _) _                              = LT
+    compare (PSList l1) (PSList l2)                  = compare l1 l2
+    compare (PSList _) _                             = LT
     compare (PSInternalOp o1 _) (PSInternalOp o2 _)  = compare o1 o2
     compare (PSInternalOp _ _) _                     = LT
 
@@ -147,17 +155,24 @@ psNewState = PSState {
         -- stack:
         ("copy", psOpCopy), ("count", psOpCount), ("dup", psOpDup),
         ("exch", psOpExch), ("index", psOpIndex), ("pop", psOpPop),
-        ("roll", psOpRoll)
+        ("roll", psOpRoll),
         -- arithmetic, math, and relational:
+        ("+", psOpAdd),   ("-", psOpSub),   ("*", psOpMul),
+        ("mod", psOpMod), ("div", psOpDiv), ("neg", psOpNeg),
+        ("and", psOpAnd), ("or", psOpOr),   ("xor", psOpXor),
+        ("not", psOpNot),
+        ("eq", psOpEq "eq" (==)),
+        ("ne", psOpEq "ne" (/=)),
+        ("ge", psOpOrd "ge" (>)),
+        ("gt", psOpOrd "gt" (>=)),
+        ("le", psOpOrd "le" (<)),
+        ("lt", psOpOrd "lt" (<=))
         -- control:
         ]
 
 
 
 psInterp :: PSState -> PSObject -> IO (Either String PSState)
-
--- psInterp for string objects (push):
-psInterp st obj@(PSString s) = return $ Right st {stack = obj : stack st}
 
 -- psInterp for code objects:
 psInterp st obj@(PSCode (o:os)) = do
@@ -169,68 +184,135 @@ psInterp st obj@(PSCode (o:os)) = do
 -- psInterp for empty code objects:
 psInterp st obj@(PSCode []) = return $ Right st
 
--- psInterp for int objects (push):
-psInterp st obj@(PSInt i) = return $ Right st {stack = obj : stack st}
-
 -- psInterp for name objects (lookup):
 psInterp st (PSName n) = case find n (dictStack st ++ [globDict st]) of
         Just obj -> psInterp st obj
-        Nothing -> return $ Left ("psInterp error: (lookup): name " ++ n ++ " not found.")
+        Nothing -> return $ Left ("psInterp error: (lookup): name " ++ n ++ " not found")
     where
     find n (d:ds) = M.lookup (PSString n) d <|> find n ds
     find n [] = Nothing
 
--- psInterp for map objects (push):
-psInterp st obj@(PSMap m) = return $ Right st {stack = obj : stack st}
-
 -- psInterp for internal objects (execute):
 psInterp st obj@(PSInternalOp name op) = op st
 
+-- psInterp for map, string, int, etc... (push):
+psInterp st obj = return $ Right st {stack = obj : stack st}
 
+
+
+ensureNArgs :: String -> Int -> PSState -> IO (Either String PSState) -> IO (Either String PSState)
+ensureNArgs name n st action
+    | (length $ take n $ stack st) < n  = return $ Left ("psInterp error: " ++ name ++ msg)
+    | otherwise = action
+    where
+    msg = if n > 1 then ": at least " ++ show n ++ " elements on the stack required"
+                   else ": empty stack"
 
 ------ POSTSCRIPT STACK OPERATORS ------
 
 psOpCopy :: PSState -> IO (Either String PSState)
-psOpCopy st = return $ case stack st of
+psOpCopy st = ensureNArgs "copy" 1 st $ return $ case stack st of
     (PSInt n:ss) -> let sub = take n ss in if length sub < n
         then Left "psInterp error: copy: not enough elements on the stack"
         else Right st {stack = sub ++ ss}
-    (s:ss) -> Left "psInterp error: copy: not an int on top of the stack"
-    [] -> Left "psInterp error: copy: empty stack."
+    _ -> Left "psInterp error: copy: not an int on top of the stack"
 
 psOpCount :: PSState -> IO (Either String PSState)
 psOpCount st = return $ Right st {stack = (PSInt $ length ss) : ss}
     where ss = stack st
 
 psOpDup :: PSState -> IO (Either String PSState)
-psOpDup st = return $ case stack st of
-    (s:ss) -> Right st {stack = s:s:ss}
-    [] -> Left "psInterp error: dup: empty stack."
+psOpDup st = ensureNArgs "dup" 1 st $ return $
+    let (s:ss) = stack st in Right st {stack = s:s:ss}
 
 psOpExch :: PSState -> IO (Either String PSState)
-psOpExch st = return $ case stack st of
-    (x:y:ss) -> Right st {stack = y:x:ss}
-    _ -> Left "psInterp error: exch: at least 2 elements on the stack required."
+psOpExch st = ensureNArgs "exch" 2 st $ return $
+    let (x:y:ss) = stack st in Right st {stack = y:x:ss}
 
 psOpIndex :: PSState -> IO (Either String PSState)
-psOpIndex st = return $ case stack st of
+psOpIndex st = ensureNArgs "index" 1 st $ return $ case stack st of
     (PSInt n:ss) -> let sub = take (n+1) ss in if length sub < (n+1)
         then Left "psInterp error: index: not enough elements on the stack"
         else Right st {stack = last sub : ss}
-    (s:ss) -> Left "psInterp error: index: not an int on top of the stack"
-    [] -> Left "psInterp error: index: empty stack."
+    _ -> Left "psInterp error: index: not an int on top of the stack"
 
 psOpPop :: PSState -> IO (Either String PSState)
-psOpPop st = return $ case stack st of
-    (s:ss) -> Right st {stack = ss}
-    [] -> Left "psInterp error: pop: empty stack."
+psOpPop st = ensureNArgs "pop" 1 st $ return $ Right st {stack = tail $ stack st}
 
 psOpRoll :: PSState -> IO (Either String PSState)
-psOpRoll st = return $ case stack st of
+psOpRoll st = ensureNArgs "roll" 2 st $ return $ case stack st of
     (PSInt i:PSInt n:ss) -> let sub = take n ss in if length sub < n
         then Left "psInterp error: roll: not enough elements on the stack"
         else Right st {stack = (take n $ drop (i `mod` n) $ cycle sub) ++ drop n ss}
-    (_:_:ss) -> Left "psInterp error: roll: top 2 elements of the stack not int"
-    [] -> Left "psInterp error: roll: empty stack."
+    _ -> Left "psInterp error: roll: top 2 elements of the stack must be int"
+
+------ POSTSCRIPT ARITHMETIC, MATH AND RELATIONAL OPERATORS ------
+
+psOpAdd :: PSState -> IO (Either String PSState)
+psOpAdd st = ensureNArgs "+" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i1 + i2) : ss}
+    (PSCode c1:PSCode c2:ss) -> Right st {stack = PSCode (c1 ++ c2) : ss}
+    (PSList l1:PSList l2:ss) -> Right st {stack = PSList (l1 ++ l2) : ss}
+    (PSString s1:PSString s2:ss) -> Right st {stack = PSString (s1 ++ s2) : ss}
+    _ -> Left "psInterp error: +: types not matching or non int/code/list/string"
+
+psOpSub :: PSState -> IO (Either String PSState)
+psOpSub st = ensureNArgs "-" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i2 - i1) : ss}
+    _ -> Left "psInterp error: -: top 2 elements of the stack must be int"
+
+psOpMul :: PSState -> IO (Either String PSState)
+psOpMul st = ensureNArgs "*" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i1 * i2) : ss}
+    _ -> Left "psInterp error: *: top 2 elements of the stack must be int"
+
+psOpMod :: PSState -> IO (Either String PSState)
+psOpMod st = ensureNArgs "mod" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) -> if i2 /= 0
+        then Right st {stack = PSInt (mod i2 i1) : ss}
+        else Left "psInterp error: mod: division by zero"
+    _ -> Left "psInterp error: mod: top 2 elements of the stack must be int"
+
+psOpDiv :: PSState -> IO (Either String PSState)
+psOpDiv st = ensureNArgs "div" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) -> if i2 /= 0
+        then Right st {stack = PSInt (div i2 i1) : ss}
+        else Left "psInterp error: div: division by zero"
+    _ -> Left "psInterp error: div: top 2 elements of the stack must be int"
+
+psOpNeg :: PSState -> IO (Either String PSState)
+psOpNeg st = ensureNArgs "neg" 1 st $ return $ case stack st of
+    (PSInt i:ss) -> Right st {stack = PSInt (-i) : ss}
+    _ -> Left "psInterp error: neg: not an int on top of the stack"
+
+psOpAnd :: PSState -> IO (Either String PSState)
+psOpAnd st = ensureNArgs "and" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i1 B..&. i2) : ss}
+    _ -> Left "psInterp error: and: top 2 elements of the stack must be int"
+
+psOpOr :: PSState -> IO (Either String PSState)
+psOpOr st = ensureNArgs "or" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i1 B..|. i2) : ss}
+    _ -> Left "psInterp error: or: top 2 elements of the stack must be int"
+
+psOpXor :: PSState -> IO (Either String PSState)
+psOpXor st = ensureNArgs "xor" 2 st $ return $ case stack st of
+    (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (B.xor i1 i2) : ss}
+    _ -> Left "psInterp error: xor: top 2 elements of the stack must be int"
+
+psOpNot :: PSState -> IO (Either String PSState)
+psOpNot st = ensureNArgs "not" 1 st $ return $ case stack st of
+    (PSInt i:ss) -> Right st {stack = PSInt (if i==0 then 1 else 0) : ss}
+    _ -> Left "psInterp error: not: not an int on top of the stack"
+
+psOpEq :: String -> (PSObject -> PSObject -> Bool) -> PSState -> IO (Either String PSState)
+psOpEq name comp st = ensureNArgs name 2 st $ return $ case stack st of
+    (o1:o2:ss) -> Right st {stack = PSInt (if comp o2 o1 then 1 else 0) : ss}
+
+psOpOrd :: String -> (forall a. Ord a => a -> a -> Bool) -> PSState -> IO (Either String PSState)
+psOpOrd name comp st = ensureNArgs name 2 st $ return $ case stack st of
+    (PSInt i1 : PSInt i2 : ss) ->   Right st {stack = PSInt (if comp i2 i1 then 1 else 0) : ss}
+    (PSString s1:PSString s2:ss) -> Right st {stack = PSInt (if comp s2 s1 then 1 else 0) : ss}
+    _ -> Left ("psInterp error: " ++ name ++ ": types not matching or non int/string")
 
 -- vi: et sw=4
