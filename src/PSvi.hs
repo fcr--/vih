@@ -181,7 +181,8 @@ psNewState = PSState {
         ("le", psOpOrd "le" (<)),
         ("lt", psOpOrd "lt" (<=)),
         -- control:
-        ("if", psOpIf), ("ifelse", psOpIfelse), ("for", psOpFor)
+        ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
+        ("repeat", psOpRepeat)
         ]
 
 
@@ -366,5 +367,17 @@ psOpFor st = ensureNArgs "for" 3 st $ case stack st of
                     PSRetOK -> psOpFor st' {stack = proc:l:i:PSInt (beg+inc):stack st'}
     _ ->return $ Left "psInterp error: for: top four elements must have int, int, int and code type (code on top)"
 
+psOpRepeat :: PSState -> IO (Either String PSState)
+psOpRepeat st = ensureNArgs "repeat" 2 st $ case stack st of
+    (proc@(PSCode _) : PSInt count : ss) -> if count < 0
+        then return $ Right st {stack = ss}
+        else do
+            e <- psExec st {stack = ss} proc
+            case e of
+                Left _ -> return e
+                Right st' -> case retState st' of
+                    PSRetBreak -> return $ Right st' {retState = PSRetOK}
+                    PSRetOK -> psOpRepeat st' {stack = proc:PSInt (count-1):stack st'}
+    _ ->return $ Left "psInterp error: repeat: top four elements must have int and code type (code on top)"
 
 -- vi: et sw=4
