@@ -24,6 +24,11 @@ readFile fn = fmap (load . noNull . lines) $ S.readFile fn
     where
     lines = map loadLine ls
 
+-- empty buffer constructor
+
+newBuf :: Buffer
+newBuf = Buffer { contents = ([], BufferLine [],[]), curLine = 0, numLines = 1}
+
 -- writeFile :: FilePath -> IO Buffer
 
 lineUp :: Buffer -> Buffer

@@ -1,4 +1,4 @@
-module BufferManager(BM,currentBuffer,initBM) where
+module BufferManager(BM,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
 import qualified Buffer as B
 import Data.Map(Map,(!),singleton,keys,insert)
 import Data.Maybe(fromJust)
@@ -26,9 +26,11 @@ instance Monad BM where
 insBuffer :: B.Buffer -> BM ()
 insBuffer newbuf = BM (\bm->(bm {buffers = insert (maxbuffer bm) newbuf (buffers bm) 
                            ,maxbuffer=1+maxbuffer bm },()))
+
 --substitutes current buffer with the one given
 modBuffer :: B.Buffer -> BM ()
 modBuffer buf = BM (\bm -> (bm{buffers = insert (curBuffer bm) buf (buffers bm)},()))
+
 --getting the current buffer from memory, searches with the currentbuffer as key
 currentBuffer :: BM B.Buffer
 currentBuffer = BM (\bm -> (bm, getCurBuff bm))
@@ -39,6 +41,13 @@ nextBuffer :: BM Int
 nextBuffer = BM (\bm -> let allkeys = (keys.buffers) bm
                             hkeys = filter (> curBuffer bm) allkeys
                             finalkey   = if (not.null) hkeys then head hkeys else head allkeys in
+                            (bm{curBuffer = finalkey},finalkey))
+
+--get the previous buffer identifier and switch to the previous buffer
+prevBuffer :: BM Int
+prevBuffer = BM (\bm -> let allkeys = (keys.buffers) bm
+                            lkeys = filter (< curBuffer bm) allkeys
+                            finalkey = if (not.null) lkeys then (head.reverse) lkeys else (head.reverse) allkeys in
                             (bm{curBuffer = finalkey},finalkey))
 
 initBM :: BManager -- A ejecutarse al inicio del programa
