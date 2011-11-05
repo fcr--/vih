@@ -400,7 +400,7 @@ Operands ignored from the postscript standard:
   bytesavailable, cachestatus, ceiling, charpath, ¿clear?, cleardictstack,
   ¿cleartomark?, clip, clippath, cliprestore, clipsave, ¿closefile?, closepath,
   colorimage, composefont, concat, concatmatrix, configurationerror, copypage,
-  cos, ¿countdictstack?, ¿countexecstack?, ¿counttomark?, cshow,
+  cos, ¿countdictstack?, ¿counttomark?, cshow,
   currentblackgeneration, currentcacheparams, currentcmykcolor, currentcolor,
   currentcolorrendering, currentcolorscreen, currentcolorspace,
   currentcolortransfer, currentdash, currentdevparams, currentfile,
@@ -415,7 +415,7 @@ Operands ignored from the postscript standard:
   dictstackoverflow, ¿dictstackunderflow?, dtransform, echo, eexec, endbfchar,
   endbfrange, endcidchar, endcidrange, endcmap, endcodespacerange,
   endnotdefchar, endnotdefrange, endrearrangedfont, endusematrix, eoclip,
-  eofill, erasepage, ¿errordict?, execform, execstack, ¿execstackoverflow?,
+  eofill, erasepage, ¿errordict?, execform,
   execuserobject, executeonly, executive, exitserver, exp, false, ¿file?,
   ¿filenameforall?, ¿fileposition?, fill, filter (another more useful proc is
   implemented instead), findcolorrendering, ¿findencoding?, findfont,

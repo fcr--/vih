@@ -144,7 +144,13 @@ psNewState = PSState {
         stack = []}
     where
     globals = map (\(k,v) -> (PSString k, PSInternalOp k v)) [
-        ("copy", psOpCopy), ("dup", psOpDup), ("exch", psOpExch), ("pop", psOpPop)]
+        -- stack:
+        ("copy", psOpCopy), ("count", psOpCount), ("dup", psOpDup),
+        ("exch", psOpExch), ("index", psOpIndex), ("pop", psOpPop),
+        ("roll", psOpRoll)
+        -- arithmetic, math, and relational:
+        -- control:
+        ]
 
 
 
@@ -192,6 +198,10 @@ psOpCopy st = return $ case stack st of
     (s:ss) -> Left "psInterp error: copy: not an int on top of the stack"
     [] -> Left "psInterp error: copy: empty stack."
 
+psOpCount :: PSState -> IO (Either String PSState)
+psOpCount st = return $ Right st {stack = (PSInt $ length ss) : ss}
+    where ss = stack st
+
 psOpDup :: PSState -> IO (Either String PSState)
 psOpDup st = return $ case stack st of
     (s:ss) -> Right st {stack = s:s:ss}
@@ -202,9 +212,25 @@ psOpExch st = return $ case stack st of
     (x:y:ss) -> Right st {stack = y:x:ss}
     _ -> Left "psInterp error: exch: at least 2 elements on the stack required."
 
+psOpIndex :: PSState -> IO (Either String PSState)
+psOpIndex st = return $ case stack st of
+    (PSInt n:ss) -> let sub = take (n+1) ss in if length sub < (n+1)
+        then Left "psInterp error: index: not enough elements on the stack"
+        else Right st {stack = last sub : ss}
+    (s:ss) -> Left "psInterp error: index: not an int on top of the stack"
+    [] -> Left "psInterp error: index: empty stack."
+
 psOpPop :: PSState -> IO (Either String PSState)
 psOpPop st = return $ case stack st of
     (s:ss) -> Right st {stack = ss}
     [] -> Left "psInterp error: pop: empty stack."
+
+psOpRoll :: PSState -> IO (Either String PSState)
+psOpRoll st = return $ case stack st of
+    (PSInt i:PSInt n:ss) -> let sub = take n ss in if length sub < n
+        then Left "psInterp error: roll: not enough elements on the stack"
+        else Right st {stack = (take n $ drop (i `mod` n) $ cycle sub) ++ drop n ss}
+    (_:_:ss) -> Left "psInterp error: roll: top 2 elements of the stack not int"
+    [] -> Left "psInterp error: roll: empty stack."
 
 -- vi: et sw=4
