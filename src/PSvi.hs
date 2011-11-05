@@ -13,13 +13,13 @@ import Control.Applicative
 import qualified Data.Map as M
 import qualified Data.Bits as B
 
-data PSObject = PSString String
+data PSObject = PSString !String
               | PSCode [PSObject]
-              | PSInt Int
-              | PSName String
+              | PSInt !Int
+              | PSName !String
               | PSMap (M.Map PSObject PSObject)
               | PSList [PSObject]
-              | PSInternalOp String (PSState -> IO (Either String PSState))
+              | PSInternalOp !String !(PSState -> IO (Either String PSState))
 
 instance Show PSObject where
     show (PSString s)       = "PSString " ++ show s
@@ -147,13 +147,13 @@ psParse text = case res of
 
 data PSState = PSState {
         globDict  :: M.Map PSObject PSObject,
-        dictStack :: [M.Map PSObject PSObject],
-        stack     :: [PSObject],
-        retState  :: PSRetState}
+        dictStack :: ![M.Map PSObject PSObject],
+        stack     :: ![PSObject],
+        retState  :: !PSRetState}
     deriving Show
 
 data PSRetState = PSRetOK | PSRetBreak
-    deriving Show
+    deriving (Show, Eq)
 
 
 
@@ -182,7 +182,7 @@ psNewState = PSState {
         ("lt", psOpOrd "lt" (<=)),
         -- control:
         ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
-        ("repeat", psOpRepeat)
+        ("repeat", psOpRepeat), ("loop", psOpLoop),     ("exit", psOpExit)
         ]
 
 
@@ -379,5 +379,21 @@ psOpRepeat st = ensureNArgs "repeat" 2 st $ case stack st of
                     PSRetBreak -> return $ Right st' {retState = PSRetOK}
                     PSRetOK -> psOpRepeat st' {stack = proc:PSInt (count-1):stack st'}
     _ ->return $ Left "psInterp error: repeat: top four elements must have int and code type (code on top)"
+
+psOpLoop :: PSState -> IO (Either String PSState)
+psOpLoop st = ensureNArgs "loop" 1 st $ case stack st of
+    (proc@(PSCode _) : ss) -> do
+        e <- psExec st {stack = ss} proc
+        case e of
+            Left _ -> return e
+            Right st' -> case retState st' of
+                PSRetBreak -> return $ Right st' {retState = PSRetOK}
+                PSRetOK -> psOpLoop st' {stack = proc:stack st'}
+    _ ->return $ Left "psInterp error: loop: not a code on top of the stack"
+
+psOpExit :: PSState -> IO (Either String PSState)
+psOpExit st = return $ Right (if retState st==PSRetOK then st {retState=PSRetBreak} else st)
+
+--main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
 
 -- vi: et sw=4
