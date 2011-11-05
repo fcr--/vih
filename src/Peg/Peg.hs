@@ -61,7 +61,7 @@ pegMatch' (PegCat fn children) tokens n
     xs = pegMatchGen True children tokens n
 
 
-pegMatch' (PegAlt fn []) tokens n = (Nothing, tokens, n)
+pegMatch' (PegAlt _ []) tokens n = (Nothing, tokens, n)
 pegMatch' (PegAlt fn alts) tokens n
   | isJust res = (res, toks, n')
   | otherwise  = (res, tokens, n')
@@ -163,21 +163,21 @@ pegMatchGen doFail (child:children) tokens n =
 applyFst f (x, y, z) = (f x, y, z)
 
 
-fst3 (a, b, c) = a
-snd3 (a, b, c) = b
+fst3 (a, _, _) = a
+snd3 (_, b, _) = b
 
 
 instance Show (PegGrammar a) where
-  show (PegEqToken fn tok) = show tok
-  show (PegTerm fn m) = "(func)"
-  show (PegCat fn children) = "(" ++ concat t ++ ")"
+  show (PegEqToken _ tok) = show tok
+  show (PegTerm _ m) = "(func)"
+  show (PegCat _ children) = "(" ++ concat t ++ ")"
     where t = zipWith (++) ("":repeat " ") (map show children)
-  show (PegAlt fn children) = "(" ++ concat t ++ ")"
+  show (PegAlt _ children) = "(" ++ concat t ++ ")"
     where t = zipWith (++) ("":repeat " | ") (map show children)
-  show (PegAster fn child) = show child ++ "*"
-  show (PegPlus fn child) = show child ++ "+"
-  show (PegOpt fn child) = show child ++ "?"
-  show (PegPosLA fn child) = show child ++ "&"
-  show (PegNegLA fn child) = show child ++ "!"
+  show (PegAster _ child) = show child ++ "*"
+  show (PegPlus _ child) = show child ++ "+"
+  show (PegOpt _ child) = show child ++ "?"
+  show (PegPosLA _ child) = show child ++ "&"
+  show (PegNegLA _ child) = show child ++ "!"
   show (PegMeta _) = "(meta)"
 

@@ -3,11 +3,12 @@
 module PSvi (psParse,
              PSObject(..),
              psNewState,
-             psInterp)
+             psInterp,
+             psExec)
     where
 
 import Peg.Peg
-import Char
+import Data.Char
 import Control.Applicative
 import qualified Data.Map as M
 import qualified Data.Bits as B
@@ -56,12 +57,14 @@ instance Ord PSObject where
     compare (PSInternalOp _ _) _                     = LT
 
 -- ps = blanks (atom blanks)*
+grm_ps :: PegGrammar PSObject
 grm_ps = PegAster PSCode (
     PegCat head [
         grm_atom,
         grm_blanks undefined])
 
 -- string = '"' ('\\' . / !('\\' / '"') .)* '"';
+grm_string :: PegGrammar PSObject
 grm_string = PegCat (PSString . concat) [
     PegEqToken (const "") "\"",
     PegAster id (PegAlt id [
@@ -74,6 +77,7 @@ grm_string = PegCat (PSString . concat) [
     unquoteList = [('n','\n'), ('r','\r'), ('t','\t')]
 
 -- code = '{' ps '}'
+grm_code :: PegGrammar PSObject
 grm_code = PegCat (!!2) [
     PegEqToken undefined "{",
     grm_blanks undefined,
@@ -95,9 +99,11 @@ grm_blanks k = PegAster (const k) (
                 PegNegLA undefined (PegTerm undefined (const True))]]])
 
 -- atom = string / number / code / name / operators
+grm_atom :: PegGrammar PSObject
 grm_atom = PegAlt id [grm_string, grm_number, grm_code, grm_name, grm_operators]
 
 -- number = '-'? ('0'..'9'+)
+grm_number :: PegGrammar PSObject
 grm_number = PegCat (PSInt . read . concat) [
     PegOpt concat (
         PegEqToken id "-"),
@@ -105,14 +111,16 @@ grm_number = PegCat (PSInt . read . concat) [
         PegTerm id (isDigit . head))]
 
 -- name = ('a'..'z'/'A'..'Z'/'_') ('a'..'z'/'A'..'Z'/'_'/'0'..'9')*
+grm_name :: PegGrammar PSObject
 grm_name = PegCat (PSName . concat) [
-    PegTerm id (\[c] -> isAlpha c || c=='_'),
+    PegTerm id (\c -> all isAlpha c || c=="_"),
     PegAster concat (
-        PegTerm id (\[c] -> isAlphaNum c || c=='_'))]
+        PegTerm id (\c -> all isAlphaNum c || c=="_"))]
 
 -- operators = '[' / ']' / '+' / '-' / '*' / '<' '<' / '>' '>'
+grm_operators :: PegGrammar PSObject
 grm_operators = PegAlt PSName [
-    PegTerm id (\[c] -> elem c "[]+-*"),
+    PegTerm id (\c -> c `elem` ["[", "]", "+", "-", "*"]),
     PegCat concat $ replicate 2 $ PegEqToken id "<",
     PegCat concat $ replicate 2 $ PegEqToken id ">"]
 
@@ -127,7 +135,7 @@ psParse text = case res of
     -- grammar:
     gram = PegCat head [grm_ps, PegNegLA undefined $ PegTerm id $ const True]
     -- err info:
-    line = (length $ filter ('\n'==) $ errInfo') + 1
+    line = length (filter ('\n'==) errInfo') + 1
     errInfo = drop (n - len) errInfo' ++ "\27[7m" ++ take 1 ttext ++ "\27[0m" ++ drop 1 ttext
     errInfo' = take n text
     ttext = take len (drop n text) ++ " "
@@ -140,7 +148,11 @@ psParse text = case res of
 data PSState = PSState {
         globDict  :: M.Map PSObject PSObject,
         dictStack :: [M.Map PSObject PSObject],
-        stack     :: [PSObject]}
+        stack     :: [PSObject],
+        retState  :: PSRetState}
+    deriving Show
+
+data PSRetState = PSRetOK | PSRetBreak
     deriving Show
 
 
@@ -149,7 +161,8 @@ psNewState :: PSState
 psNewState = PSState {
         globDict = M.fromList globals,
         dictStack = [],
-        stack = []}
+        stack = [],
+        retState = PSRetOK}
     where
     globals = map (\(k,v) -> (PSString k, PSInternalOp k v)) [
         -- stack:
@@ -166,43 +179,53 @@ psNewState = PSState {
         ("ge", psOpOrd "ge" (>)),
         ("gt", psOpOrd "gt" (>=)),
         ("le", psOpOrd "le" (<)),
-        ("lt", psOpOrd "lt" (<=))
+        ("lt", psOpOrd "lt" (<=)),
         -- control:
+        ("if", psOpIf), ("ifelse", psOpIfelse), ("for", psOpFor)
         ]
 
 
 
 psInterp :: PSState -> PSObject -> IO (Either String PSState)
 
--- psInterp for code objects:
-psInterp st obj@(PSCode (o:os)) = do
-        e <- psInterp st o
-        case e of
-            Left m -> return e
-            Right st' -> psInterp st' (PSCode os)
-
--- psInterp for empty code objects:
-psInterp st obj@(PSCode []) = return $ Right st
-
 -- psInterp for name objects (lookup):
 psInterp st (PSName n) = case find n (dictStack st ++ [globDict st]) of
-        Just obj -> psInterp st obj
+        Just obj -> psExec st obj
         Nothing -> return $ Left ("psInterp error: (lookup): name " ++ n ++ " not found")
     where
-    find n (d:ds) = M.lookup (PSString n) d <|> find n ds
-    find n [] = Nothing
+    find name (d:ds) = M.lookup (PSString name) d <|> find name ds
+    find _ [] = Nothing
 
 -- psInterp for internal objects (execute):
-psInterp st obj@(PSInternalOp name op) = op st
+psInterp st (PSInternalOp _ op) = op st
 
--- psInterp for map, string, int, etc... (push):
+-- psInterp for map, string, int, code, list, etc... (push):
 psInterp st obj = return $ Right st {stack = obj : stack st}
+
+
+
+psExec :: PSState -> PSObject -> IO (Either String PSState)
+
+-- psExec for code objects:
+psExec st (PSCode (o:os)) = do
+        e <- psInterp st o
+        case e of
+            Left _ -> return e
+            Right st' -> case retState st' of
+                PSRetOK -> psExec st' (PSCode os)
+                _ -> return e
+
+-- psExec for empty code objects:
+psExec st (PSCode []) = return $ Right st
+
+-- psExec's default case (call psInterp):
+psExec st obj = psInterp st obj
 
 
 
 ensureNArgs :: String -> Int -> PSState -> IO (Either String PSState) -> IO (Either String PSState)
 ensureNArgs name n st action
-    | (length $ take n $ stack st) < n  = return $ Left ("psInterp error: " ++ name ++ msg)
+    | (length . take n . stack) st < n  = return $ Left ("psInterp error: " ++ name ++ msg)
     | otherwise = action
     where
     msg = if n > 1 then ": at least " ++ show n ++ " elements on the stack required"
@@ -243,7 +266,7 @@ psOpRoll :: PSState -> IO (Either String PSState)
 psOpRoll st = ensureNArgs "roll" 2 st $ return $ case stack st of
     (PSInt i:PSInt n:ss) -> let sub = take n ss in if length sub < n
         then Left "psInterp error: roll: not enough elements on the stack"
-        else Right st {stack = (take n $ drop (i `mod` n) $ cycle sub) ++ drop n ss}
+        else Right st {stack = take n (drop (i `mod` n) $ cycle sub) ++ drop n ss}
     _ -> Left "psInterp error: roll: top 2 elements of the stack must be int"
 
 ------ POSTSCRIPT ARITHMETIC, MATH AND RELATIONAL OPERATORS ------
@@ -308,11 +331,40 @@ psOpNot st = ensureNArgs "not" 1 st $ return $ case stack st of
 psOpEq :: String -> (PSObject -> PSObject -> Bool) -> PSState -> IO (Either String PSState)
 psOpEq name comp st = ensureNArgs name 2 st $ return $ case stack st of
     (o1:o2:ss) -> Right st {stack = PSInt (if comp o2 o1 then 1 else 0) : ss}
+    _ -> error "ensureNArgs failed"
 
 psOpOrd :: String -> (forall a. Ord a => a -> a -> Bool) -> PSState -> IO (Either String PSState)
 psOpOrd name comp st = ensureNArgs name 2 st $ return $ case stack st of
     (PSInt i1 : PSInt i2 : ss) ->   Right st {stack = PSInt (if comp i2 i1 then 1 else 0) : ss}
     (PSString s1:PSString s2:ss) -> Right st {stack = PSInt (if comp s2 s1 then 1 else 0) : ss}
     _ -> Left ("psInterp error: " ++ name ++ ": types not matching or non int/string")
+
+------ POSTSCRIPT CONTROL OPERATORS ------
+
+psOpIf :: PSState -> IO (Either String PSState)
+psOpIf st = ensureNArgs "if" 2 st $ case stack st of
+    (PSCode c:PSInt i:ss) -> if i /= 0
+        then psExec st {stack = ss} (PSCode c)
+        else return $ Right st {stack = ss}
+    _ -> return $ Left "psInterp error: if: top two elements must have int and code type (code on top)"
+
+psOpIfelse :: PSState -> IO (Either String PSState)
+psOpIfelse st = ensureNArgs "ifelse" 3 st $ case stack st of
+    (f@(PSCode _):t@(PSCode _):PSInt i:ss) -> psExec st {stack = ss} (if i/=0 then t else f)
+    _ -> return $ Left "psInterp error: ifelse: top three elements must have int, code and code type (code on top)"
+
+psOpFor :: PSState -> IO (Either String PSState)
+psOpFor st = ensureNArgs "for" 3 st $ case stack st of
+    (proc@(PSCode _):l@(PSInt lim):i@(PSInt inc):b@(PSInt beg):ss) -> if lim < beg
+        then return $ Right st {stack = ss}
+        else do
+            e <- psExec st {stack = b:ss} proc
+            case e of
+                Left _ -> return e
+                Right st' -> case retState st' of
+                    PSRetBreak -> return $ Right st' {retState = PSRetOK}
+                    PSRetOK -> psOpFor st' {stack = proc:l:i:PSInt (beg+inc):stack st'}
+    _ ->return $ Left "psInterp error: for: top four elements must have int, int, int and code type (code on top)"
+
 
 -- vi: et sw=4
