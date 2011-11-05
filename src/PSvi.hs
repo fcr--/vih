@@ -144,7 +144,7 @@ psNewState = PSState {
         stack = []}
     where
     globals = map (\(k,v) -> (PSString k, PSInternalOp k v)) [
-        ("pop", psOpPop)]
+        ("copy", psOpCopy), ("dup", psOpDup), ("exch", psOpExch), ("pop", psOpPop)]
 
 
 
@@ -169,7 +169,7 @@ psInterp st obj@(PSInt i) = return $ Right st {stack = obj : stack st}
 -- psInterp for name objects (lookup):
 psInterp st (PSName n) = case find n (dictStack st ++ [globDict st]) of
         Just obj -> psInterp st obj
-        Nothing -> return $ Left ("psInterp error: name " ++ n ++ " not found.")
+        Nothing -> return $ Left ("psInterp error: (lookup): name " ++ n ++ " not found.")
     where
     find n (d:ds) = M.lookup (PSString n) d <|> find n ds
     find n [] = Nothing
@@ -184,9 +184,27 @@ psInterp st obj@(PSInternalOp name op) = op st
 
 ------ POSTSCRIPT STACK OPERATORS ------
 
+psOpCopy :: PSState -> IO (Either String PSState)
+psOpCopy st = return $ case stack st of
+    (PSInt n:ss) -> let sub = take n ss in if length sub < n
+        then Left "psInterp error: copy: not enough elements on the stack"
+        else Right st {stack = sub ++ ss}
+    (s:ss) -> Left "psInterp error: copy: not an int on top of the stack"
+    [] -> Left "psInterp error: copy: empty stack."
+
+psOpDup :: PSState -> IO (Either String PSState)
+psOpDup st = return $ case stack st of
+    (s:ss) -> Right st {stack = s:s:ss}
+    [] -> Left "psInterp error: dup: empty stack."
+
+psOpExch :: PSState -> IO (Either String PSState)
+psOpExch st = return $ case stack st of
+    (x:y:ss) -> Right st {stack = y:x:ss}
+    _ -> Left "psInterp error: exch: at least 2 elements on the stack required."
+
 psOpPop :: PSState -> IO (Either String PSState)
 psOpPop st = return $ case stack st of
     (s:ss) -> Right st {stack = ss}
-    [] -> Left "psInterp error: empty stack."
+    [] -> Left "psInterp error: pop: empty stack."
 
 -- vi: et sw=4
