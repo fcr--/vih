@@ -1,15 +1,16 @@
-module BufferManager(BM,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
+module BufferManager(BM,BManager,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
 import qualified Buffer as B
-import Data.Map(Map,(!),singleton,keys,insert)
+import Data.Map(Map,(!),singleton,keys,insert,lookup)
 import Data.Maybe(fromJust)
 import System.IO
+import Prelude hiding (lookup)
 ------ the datatype of buffer controllers ------ 
 
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,curBuffer :: Int -- current buffer we're standing on
                           ,maxbuffer :: Int -- highest identifier given in a session
-                         }
+                         } deriving(Show)
 
 newtype BM a = BM {runBM :: BManager -> (BManager, a)} -- monad hiding all this
 instance Monad BM where
@@ -50,7 +51,15 @@ prevBuffer = BM (\bm -> let allkeys = (keys.buffers) bm
                             finalkey = if (not.null) lkeys then (head.reverse) lkeys else (head.reverse) allkeys in
                             (bm{curBuffer = finalkey},finalkey))
 
-initBM :: BManager -- A ejecutarse al inicio del programa
+--switch to arbitrary buffer and return True if the buffer existed
+swBuffer :: Int -> BM Bool
+swBuffer arbBuff = BM (\bm -> let nb = case (lookup arbBuff.buffers) bm of
+                                        Nothing -> curBuffer bm
+                                        (Just b)-> arbBuff 
+                              in
+                              (bm{curBuffer = nb},curBuffer bm == nb))
+                                
+initBM :: BManager -- Creates a new single buffer with no associated file
 initBM = BManager { buffers = singleton 0 B.newBuf
                   , curBuffer = 0, maxbuffer = 1 }
 
