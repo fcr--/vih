@@ -7,9 +7,10 @@ import Data.Map(Map,(!),singleton,keys,insert)
 --Data holder of a windows tiling manager
 data WTManager = WTM {lo :: Layout -- current layout
                      ,curwdw :: Position -- current window being used
-                      wtmH :: Int -- height in characters of window
-                      wtmW :: Int -- width in characters of window
+                     ,wtmH :: Int -- height in characters of window
+                     ,wtmW :: Int -- width in characters of window
                      }
+
 
 newtype WTM a = WTM{runWTM :: WTManager -> (WTManager, a)
 instance monad WTM where
@@ -37,3 +38,8 @@ data Layout = Vspan Int Int [Layout,Int] --Vertical span with sizes
 newtype Position = [Int]
 main :: IO ()
 main = mkVty >>= 
+
+updateThread :: TVar BManager -> IO ()
+updateThread v state = do
+  state' <- doSomething state
+  updateThread v state'

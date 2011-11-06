@@ -149,7 +149,9 @@ data PSState = PSState {
         globDict  :: M.Map PSObject PSObject,
         dictStack :: ![M.Map PSObject PSObject],
         stack     :: ![PSObject],
-        retState  :: !PSRetState}
+        retState  :: !PSRetState,
+        bufferManager :: TVar BManager,
+        currentBM :: BManager}
     deriving Show
 
 data PSRetState = PSRetOK | PSRetBreak
@@ -157,12 +159,14 @@ data PSRetState = PSRetOK | PSRetBreak
 
 
 
-psNewState :: PSState
-psNewState = PSState {
+psNewState :: IO PSState
+psNewState = newTVarIO bm >>= \v -> return $ PSState {
         globDict = M.fromList globals,
         dictStack = [],
         stack = [],
-        retState = PSRetOK}
+        retState = PSRetOK,
+        bufferManager = v,
+        currentBM = bm}
     where
     globals = map (\(k,v) -> (PSString k, PSInternalOp k v)) [
         -- stack:
@@ -393,6 +397,25 @@ psOpLoop st = ensureNArgs "loop" 1 st $ case stack st of
 
 psOpExit :: PSState -> IO (Either String PSState)
 psOpExit st = return $ Right (if retState st==PSRetOK then st {retState=PSRetBreak} else st)
+
+
+
+------ BUFFER MANAGER WRAPPER ------
+
+psOpNextBuffer :: PSState -> IO (Either String PSState)
+psOpNextBuffer st = do
+    -- este código hace update:
+    (bm', res) <- atomically do
+        (bm', res) = (runBM nextBuffer) (currentBM st) -- :: Buffer 
+        writeTVar (bufferManager st) bm'
+        return (bm', res)
+    return $ Right st {stack = PSInt res : st, currentBM = bm'}
+
+psOpUpdate :: PSState -> IO (Either String PSState)
+psOpUpdate st = do
+    atomically $ writeTVar (bufferManager st) bm'
+    return $ Right st
+
 
 --main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
 

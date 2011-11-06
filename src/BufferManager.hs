@@ -10,6 +10,7 @@ data BManager = BManager {
                            buffers :: Map Int B.Buffer
                           ,curBuffer :: Int -- current buffer we're standing on
                           ,maxbuffer :: Int -- highest identifier given in a session
+                          ,vNumber :: Int -- version number: updates every time the BM is modified
                          } deriving(Show)
 
 newtype BM a = BM {runBM :: BManager -> (BManager, a)} -- monad hiding all this
@@ -23,18 +24,19 @@ instance Monad BM where
 --TODO: change all functions to actually do something
 ------ functions over BM ------
 
+
 --adding a buffer object to the BM, addds 1 to maxbuffer, adds the buffer to the bufferdata list
 insBuffer :: B.Buffer -> BM ()
 insBuffer newbuf = BM (\bm->(bm {buffers = insert (maxbuffer bm) newbuf (buffers bm) 
-                           ,maxbuffer=1+maxbuffer bm },()))
+                           ,maxbuffer=1+maxbuffer bm,vNumber = 1+vNumber bm},()))
 
 --substitutes current buffer with the one given
 modBuffer :: B.Buffer -> BM ()
-modBuffer buf = BM (\bm -> (bm{buffers = insert (curBuffer bm) buf (buffers bm)},()))
+modBuffer buf = BM (\bm -> (bm{buffers = insert (curBuffer bm) buf (buffers bm),vNumber = 1+vNumber bm},()))
 
 --getting the current buffer from memory, searches with the currentbuffer as key
 currentBuffer :: BM B.Buffer
-currentBuffer = BM (\bm -> (bm, getCurBuff bm))
+currentBuffer = BM (\bm -> (bm {vNumber = 1+vNumber bm}, getCurBuff bm))
     where getCurBuff bm = (buffers bm)!(curBuffer bm)
 
 --get the next buffer identifier and switch to next buffer
@@ -42,25 +44,25 @@ nextBuffer :: BM Int
 nextBuffer = BM (\bm -> let allkeys = (keys.buffers) bm
                             hkeys = filter (> curBuffer bm) allkeys
                             finalkey   = if (not.null) hkeys then head hkeys else head allkeys in
-                            (bm{curBuffer = finalkey},finalkey))
+                            (bm{curBuffer = finalkey, vNumber = 1+vNumber bm},finalkey))
 
 --get the previous buffer identifier and switch to the previous buffer
 prevBuffer :: BM Int
 prevBuffer = BM (\bm -> let allkeys = (keys.buffers) bm
                             lkeys = filter (< curBuffer bm) allkeys
                             finalkey = if (not.null) lkeys then (head.reverse) lkeys else (head.reverse) allkeys in
-                            (bm{curBuffer = finalkey},finalkey))
+                            (bm{curBuffer = finalkey, vNumber = 1+vNumber bm},finalkey))
 
 --switch to arbitrary buffer and return True if the buffer existed
 swBuffer :: Int -> BM Bool
-swBuffer arbBuff = BM (\bm -> let nb = case (lookup arbBuff.buffers) bm of
-                                        Nothing -> curBuffer bm
-                                        (Just b)-> arbBuff 
+swBuffer arbBuff = BM (\bm -> let (nb,i) = case (lookup arbBuff.buffers) bm of
+                                        Nothing -> (curBuffer bm, 0)
+                                        (Just b)-> (arbBuff, 1) 
                               in
-                              (bm{curBuffer = nb},curBuffer bm == nb))
-                                
+                              (bm{curBuffer = nb,vNumber = i+vNumber bm},curBuffer bm == nb))
+
 initBM :: BManager -- Creates a new single buffer with no associated file
 initBM = BManager { buffers = singleton 0 B.newBuf
-                  , curBuffer = 0, maxbuffer = 1 }
+                  , curBuffer = 0, maxbuffer = 1, vNumber = 0}
 
 -- vi: et sw=4
