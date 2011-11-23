@@ -36,7 +36,7 @@ lineUp buff
   | curLine buff == 0  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> (tail p, head p, c:n)) $ contents buff
+    newContents = (\(p,c,n)-> (init p, last p, c:n)) $ contents buff
     newCurLine = curLine buff - 1
 
 lineDown :: Buffer -> Buffer
@@ -44,7 +44,7 @@ lineDown buff
   | curLine buff == numLines buff - 1  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> (c:p, head n, tail n)) $ contents buff
+    newContents = (\(p,c,n)-> (p++c, head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
 
 getLine :: Buffer -> BufferLine
