@@ -1,4 +1,4 @@
-module BufferManager(BM,BManager,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
+module BufferManager(BM,runBM,BManager,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
 import qualified Buffer as B
 import Data.Map(Map,(!),singleton,keys,insert,lookup)
 import Data.Maybe(fromJust)
