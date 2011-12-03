@@ -136,20 +136,8 @@ grm_operators = PegAlt (PSName False) [
 
 -- left side means an error.
 psParse :: String -> Either String PSObject
-psParse text = case res of
-        Nothing -> Left ("Syntax error in postscript near char " ++ show n ++
-                         ", on line " ++ show line ++ ": «" ++ errInfo ++ "»")
-        Just x -> Right x
-    where
-    (res, _, n) = pegMatch' gram (map (:[]) text) 0
-    -- grammar:
-    gram = PegCat head [grm_ps, PegNegLA undefined $ PegTerm id $ const True]
-    -- err info:
-    line = length (filter ('\n'==) errInfo') + 1
-    errInfo = drop (n - len) errInfo' ++ "\27[7m" ++ take 1 ttext ++ "\27[0m" ++ drop 1 ttext
-    errInfo' = take n text
-    ttext = take len (drop n text) ++ " "
-    len = 15
+psParse = pegMatch gram
+    where gram = PegCat head [grm_ps, PegNegLA undefined $ PegTerm id $ const True]
 
 
 

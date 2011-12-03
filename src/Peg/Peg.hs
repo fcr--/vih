@@ -32,9 +32,20 @@ data PegGrammar a where
   PegMeta    :: a                               -> PegGrammar a
 
 
-pegMatch :: PegGrammar a -> [String] -> (Maybe a, [String])
+pegMatch :: PegGrammar a -> String -> Either String a
 
-pegMatch grammar tokens = let (r,t,_) = pegMatch' grammar tokens 0 in (r,t)
+pegMatch gram text = case res of
+    Nothing -> Left ("Syntax error near line " ++ show line ++ 
+			"(" ++ show n ++ "): «" ++ errInfo ++ "»")
+    Just x -> Right x
+  where
+  (res, _, n) = pegMatch' gram (map (:[]) text) 0
+  -- error info:
+  line = (length $ filter ('\n'==) $ errInfo') + 1
+  errInfo = drop (n - len) errInfo' ++ "\27[7m" ++ take 1 ttext ++ "\27[0m" ++ drop 1 ttext
+  errInfo' = take n text
+  ttext = take len (drop n text) ++ " "
+  len = 15
 
 
 pegMatch' :: PegGrammar a -> [String] -> Int -> (Maybe a, [String], Int)

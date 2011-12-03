@@ -134,19 +134,12 @@ blanks :: PegGrammar a
 blanks = PegAster undefined $ PegTerm undefined (and . map isSpace)
 
 -- return a bunch of definitions:
-parse :: String -> Defs
-parse text = case res of
-    Nothing -> error ("Syntax error in grammar near line " ++ show line ++ 
-			"(" ++ show n ++ "): «" ++ errInfo ++ "»")
-    Just ds -> defs
+parseGrammar :: String -> Defs
+parseGrammar text = case res of
+    Left msg -> error msg
+    Right _ -> defs
   where
-  (res, _, n) = pegMatch' (asigs defs) (map (:[]) text) 0
+  res = pegMatch (asigs defs) text
   defs = case res of
-    Just d -> d
+    Right d -> d
     _ -> M.empty
-  -- error info:
-  line = (length $ filter ('\n'==) $ errInfo') + 1
-  errInfo = drop (n - len) errInfo' ++ "\27[7m" ++ take 1 ttext ++ "\27[0m" ++ drop 1 ttext
-  errInfo' = take n text
-  ttext = take len (drop n text) ++ " "
-  len = 15
