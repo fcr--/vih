@@ -1,5 +1,5 @@
 module TestBM where
-import qualified BufferManager as BM
+import BufferManager
 
-testing :: BM.BManager
-testing = BM.initBM
+testing :: BManager
+testing = initBM
