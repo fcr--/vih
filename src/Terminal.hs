@@ -1,8 +1,9 @@
 module Main where
-import BufferManager(BManager,BM)
+import BufferManager(BManager,BM,initBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
-
+import Graphics.Vty
+import Data.Word
 ------ Data definitions ------
 
 --Data holder of a windows tiling manager
@@ -11,7 +12,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,curwdw :: [Int] -- current window being used
                       ,wtmH :: Int -- height in characters of window
                       ,wtmW :: Int -- width in characters of window
-                      ,bm :: TVar BManager
+                      ,bm :: BManager
                       }
 
 
@@ -25,8 +26,8 @@ instance Monad WTM where
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
-initWTM :: TVar BManager -> WTManager
-initWTM ref = WTMa {lo = Window 0 0 0
+initWTM :: BManager -> WTManager
+initWTM ref = WTMa {lo = NoWin
                         ,curwdw = [0]
                         ,wtmH = 0
                         ,wtmW = 0
@@ -58,12 +59,39 @@ initWTM ref = WTMa {lo = Window 0 0 0
 data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
              |Window Int Int Int -- Window with buffer number
-
+             |NoWin
 --To navigate through the layout
-main :: IO ()
-main = putStrLn "hola"
+bgcolor = def_attr
+dum = def_attr
 
+main :: IO ()
+main = mkVty >>= \vty -> 
+        let wtm = initWTM initBM in
+		next_event vty >>= \k -> 
+        display_bounds ( terminal vty ) >>= \(DisplayRegion w h) ->
+		printloop vty wtm w h >>
+		shutdown vty
+
+printloop :: Vty -> WTManager -> Word -> Word -> IO ()
+printloop vty wtm w h= do
+                    update vty (pic_for_image $ armarIm w h wtm)
+                    nextEV <- next_event vty
+                    case nextEV of 
+                        EvKey (KASCII 'q') [] -> return ()
+                        EvResize nx ny -> printloop vty wtm (fromIntegral nx) (fromIntegral ny)
+                        _ -> return ()
+
+armarIm w h wtm =   bordeSuperior w
+                 <->(printWTM w (h-3) wtm)
+                 <->bordeInferior w
+
+
+bordeSuperior w = char_fill dum '-' w 1
+bordeInferior w = char_fill dum '-' w 2
+printWTM w h wtm = char_fill dum ' ' w h
+                
 --updateThread :: TVar BManager -> IO ()
 --updateThread v state = do
 --  state' <- doSomething state
 --  updateThread v state'
+
