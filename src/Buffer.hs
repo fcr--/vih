@@ -31,12 +31,20 @@ newBuf = Buffer { contents = ([], BufferLine [],[]), curLine = 0, numLines = 1}
 
 -- writeFile :: FilePath -> IO Buffer
 
+{-
+
+	Buffer { init, current Line , sig}
+
+	init es la lista al reverso, de manera que la primera entrada sea la última.
+
+-}
+
 lineUp :: Buffer -> Buffer
 lineUp buff
   | curLine buff == 0  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> (init p, last p, c:n)) $ contents buff
+    newContents = (\(p,c,n)-> (tail p, head p, c:n)) $ contents buff
     newCurLine = curLine buff - 1
 
 lineDown :: Buffer -> Buffer
@@ -44,7 +52,7 @@ lineDown buff
   | curLine buff == numLines buff - 1  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> (p++[c], head n, tail n)) $ contents buff
+    newContents = (\(p,c,n)-> ( c : p, head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
 
 getLine :: Buffer -> BufferLine
@@ -56,7 +64,7 @@ updateLine buff@(Buffer (p,_,s) _ _) cr		=	buff { contents = (p,cr,s) }
 -- dd
 deleteLine :: Buffer -> Buffer
 deleteLine (Buffer (pr,l,sig) crLine numLines)	|	numLines == 1	=	newBuf
-						|	null sig	=	Buffer ( init pr, last pr, sig) (crLine-1) (numLines-1)
+						|	null sig	=	Buffer ( tail pr, head pr, sig) (crLine-1) (numLines-1)
 						|	otherwise	=	Buffer ( pr, head sig, tail sig) crLine (numLines-1)
 
 -- equivalent to pressing 'O' (false) or 'o' (true).
@@ -64,7 +72,7 @@ openLine :: Buffer -> Bool -> Buffer
 openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) }
 			|	otherwise	=	buff { contents = oF (contents buff), numLines = (numLines buff + 1) }
 	where
-		oT	=	\(prev, l, sig) -> ( prev ++ [l], BufferLine "", sig)
+		oT	=	\(prev, l, sig) -> ( l : prev, BufferLine "", sig)
 		oF	=	\(prev, l, sig) -> ( prev , BufferLine "", l : sig)
 
 -- equivalent to pressing J in normal mode of vim.
