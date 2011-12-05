@@ -68,12 +68,12 @@ instance MonadState WTManager WTM where
 --
 data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
-             |Window Int Int Int -- Window with buffer number
+             |Window {size::(Int,Int), buffNum::Int} -- Window with buffer number
              |NoWin
 --To navigate through the layout
 bgcolor = def_attr `with_fore_color` red
 dum = def_attr `with_style` reverse_video
-
+cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 main :: IO ()
 main = mkVty >>= \vty -> 
         let wtm = initWTM initBM in
@@ -84,7 +84,7 @@ main = mkVty >>= \vty ->
 
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
-                    update vty (pic_for_image $ armarIm w h wtm)
+                    update vty (pic_for_image $ armarIm (fromIntegral w) (fromIntegral h) wtm)
                     nextEV <- next_event vty
                     case nextEV of 
                         EvKey (KASCII 'q') [] -> return ()
@@ -105,17 +105,27 @@ data WTManager = WTMa {lo :: Layout -- current layout
 
 data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
-             |Window Int Int Int -- Window with buffer number
+             |Window {size::(Int,Int), buffNum::Int} -- Window with buffer number
              |NoWin
 
 -}                     
 bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
+-- TODO: mirar...
+printNoWin w h |(w<1) || (h<1) = empty_image
+               | otherwise = (string def_attr s <|> char_fill def_attr '#' (w-length s) 1) <-> char_fill dum '-' w (h-1)
+                    where
+                        s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
+printWin w h = printNoWin w h
 printWTM w h wtm = printLayout (lo wtm) w h
 printLayout lOut w h = case lOut of
                         NoWin -> printNoWin w h
-                        Hspan x y xsL = unfoldr (\(acc,((l,h:xs)) -> if acc > 0 then Just (printLayout x w 
-               
+                        (Window (x,y) num) -> printWin x y
+                        (Hspan x y xsL) -> foldr1 (\a b -> a <-> barraVert y <-> b)  $ map (\(lo,h )->printLayout lo x h) xsL
+                        (Vspan x y xsL) -> foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y )->printLayout lo w y) xsL
+    where barraVert y = char_fill cbarras '|' 1 y
+          barraHoriz x = char_fill cbarras '-' x 1
+
 --updateThread :: TVar BManager -> IO ()
 --updateThread v state = do
 --  state' <- doSomething state
