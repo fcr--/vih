@@ -97,7 +97,8 @@ atom defs = PegAlt id [ name defs,
 	blanks,
 	PegEqToken undefined "'",
 	char,
-	PegEqToken undefined "'"]]]
+	PegEqToken undefined "'"]],
+  PegEqToken (const (PegTerm (\[c]->[(c,[])]) (const True))) "."]
   where
   f1 :: String -> PegGrammar [(Char, [String])]
   f1 s = PegCat id $ map (\c -> PegEqToken (\[c]->(c,[])) [c]) s
