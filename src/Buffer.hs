@@ -1,6 +1,6 @@
 module Buffer where
 
-import qualified System.IO as S (readFile)
+import qualified System.IO as S (readFile,writeFile)
 
 data Buffer = Buffer {
     contents :: ([BufferLine], BufferLine, [BufferLine]),
@@ -14,7 +14,6 @@ data BufferLine = BufferLine String -- TODO: add more attrs
 ------ Buffer functions ------
 
 readFile :: FilePath -> IO Buffer
-
 readFile fn = fmap (load . noNull . lines) $ S.readFile fn
   where
   noNull ls = if null ls then [""] else ls
@@ -30,6 +29,16 @@ newBuf :: Buffer
 newBuf = Buffer { contents = ([], BufferLine [],[]), curLine = 0, numLines = 1}
 
 -- writeFile :: FilePath -> IO Buffer
+writeFile :: FilePath -> Buffer -> IO ()
+writeFile fp buf = S.writeFile fp (txt buf)
+ where txt :: Buffer -> String
+       txt b
+           | numLines b == 1 = unLoadLine (Buffer.getLine b)
+           | otherwise = txt' (firstLine b) (lastLine b)
+       txt' :: Buffer -> Bool -> String
+       txt' b True = unLoadLine (Buffer.getLine b)
+       txt' b False = let newB = lineDown b
+                      in unLoadLine (Buffer.getLine b) ++ "\n" ++ txt' newB (lastLine newB)
 
 {-
 
@@ -38,13 +47,24 @@ newBuf = Buffer { contents = ([], BufferLine [],[]), curLine = 0, numLines = 1}
 	init es la lista al reverso, de manera que la primera entrada sea la última.
 
 -}
+firstLine :: Buffer -> Buffer
+firstLine buff
+  | curLine buff == 0 = buff
+  | otherwise         = buff { contents = newContents, curLine = 0}
+    where
+    newContents = (\(p,c,n) -> ([], head p, tail p ++ [c] ++ n)) $ contents buff
+
+lastLine :: Buffer -> Bool
+lastLine buff
+  | curLine buff == numLines buff - 1 = True
+  | otherwise                         = False
 
 lineUp :: Buffer -> Buffer
 lineUp buff
   | curLine buff == 0  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> (tail p, head p, c:n)) $ contents buff
+    newContents = (\(p,c,n)-> (init p, last p, c:n)) $ contents buff
     newCurLine = curLine buff - 1
 
 lineDown :: Buffer -> Buffer
@@ -52,7 +72,7 @@ lineDown buff
   | curLine buff == numLines buff - 1  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> ( c : p, head n, tail n)) $ contents buff
+    newContents = (\(p,c,n)-> (p++[c], head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
 
 getLine :: Buffer -> BufferLine
@@ -91,3 +111,6 @@ joinLine buff	=	doIt (contents buff)
 
 loadLine :: String -> BufferLine
 loadLine = BufferLine
+
+unLoadLine :: BufferLine -> String
+unLoadLine (BufferLine s) = s

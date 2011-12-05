@@ -74,6 +74,7 @@ data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
 bgcolor = def_attr `with_fore_color` red
 dum = def_attr `with_style` reverse_video
 cbarras = def_attr `with_style` reverse_video `with_fore_color` red
+
 main :: IO ()
 main = mkVty >>= \vty -> 
         let wtm = initWTM initBM in
