@@ -62,7 +62,7 @@ data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |NoWin
 --To navigate through the layout
 bgcolor = def_attr
-dum = def_attr
+dum = def_attr      
 
 main :: IO ()
 main = mkVty >>= \vty -> 
