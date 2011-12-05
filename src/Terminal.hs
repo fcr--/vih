@@ -34,7 +34,7 @@ instance Monad WTM where
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
 initWTM :: BManager -> WTManager
-initWTM ref = WTMa {lo = NoWin
+initWTM ref = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
                         ,curwdw = [0]
                         ,wtmH = 0
                         ,wtmW = 0
@@ -69,19 +69,33 @@ instance MonadState WTManager WTM where
 data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
              |Window {size::(Int,Int), buffNum::Int} -- Window with buffer number
-             |NoWin
+             |NoWin{size :: (Int,Int)}
+             deriving(Show)
 --To navigate through the layout
 bgcolor = def_attr `with_fore_color` red
 dum = def_attr `with_style` reverse_video
 cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 
+--Function to resize the current layout to fit the new window size
+resizeLayout::Int->Int->WTManager->WTManager
+resizeLayout h w wtm = wtm{lo = (resizeLo h w) (lo wtm)}
+resizeLo :: Int -> Int -> Layout -> Layout
+resizeLo w h lo = case lo of
+                    (Vspan px py xs) -> Vspan w h $(funcV w h xs)
+                    (Hspan px py xs) -> Hspan w h $(funcH w h xs)
+                    Window (xs,ys) bn -> Window (w,h) bn
+                    NoWin (xs,ys) -> NoWin (w,h)
+    where
+        funcV w h lst = let (d,m) = divMod h (length lst) in map (\(l,lst) -> (resizeLo w (d+1) l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo w d l,d)) (drop m lst)
+        funcH w h lst = let (d,m) = divMod w (length lst) in map (\(l,lst) -> (resizeLo (d+1) h l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo d h l,d)) (drop m lst)
+
 main :: IO ()
 main = mkVty >>= \vty -> 
         let wtm = initWTM initBM in
-		next_event vty >>= \k -> 
+        next_event vty >>= \k -> 
         display_bounds ( terminal vty ) >>= \(DisplayRegion w h) ->
-		printloop vty wtm w h >>
-		shutdown vty
+        printloop vty wtm w h >>
+        shutdown vty
 
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
@@ -89,12 +103,12 @@ printloop vty wtm w h= do
                     nextEV <- next_event vty
                     case nextEV of 
                         EvKey (KASCII 'q') [] -> return ()
-                        EvResize nx ny -> printloop vty wtm (fromIntegral nx) (fromIntegral ny)
-                        _ -> return ()
+                        EvResize nx ny -> printloop vty (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny)
+                        _ -> printloop vty wtm w h
 
 armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
-                      <->(printWTM w (h-3) wtm)
+                      <->(printWTM wtm)
                       <->bordeInferior w
 {-
 
@@ -118,17 +132,13 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                     where
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
-printWTM w h wtm = printLayout (lo wtm) w h
-printLayout lOut w h = case lOut of
-                        NoWin -> printNoWin w h
+printWTM wtm = printControl (lo wtm) <-> printLayout (lo wtm)
+printControl lOut = string def_attr $show lOut
+printLayout lOut = case lOut of
+                        NoWin (x,y) -> printNoWin x y
                         (Window (x,y) num) -> printWin x y
-                        (Hspan x y xsL) -> foldr1 (\a b -> a <-> barraVert y <-> b)  $ map (\(lo,h )->printLayout lo x h) xsL
-                        (Vspan x y xsL) -> foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y )->printLayout lo w y) xsL
+                        (Hspan x y xsL) -> foldr1 (\a b -> a <|> barraVert y <|> b)  $ map (\(lo,h)->printLayout lo) xsL
+                        (Vspan x y xsL) -> foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y)->printLayout lo) xsL
     where barraVert y = char_fill cbarras '|' 1 y
           barraHoriz x = char_fill cbarras '-' x 1
-
---updateThread :: TVar BManager -> IO ()
---updateThread v state = do
---  state' <- doSomething state
---  updateThread v state'
 
