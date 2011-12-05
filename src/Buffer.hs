@@ -5,7 +5,7 @@ import qualified System.IO as S (readFile)
 data Buffer = Buffer {
     contents :: ([BufferLine], BufferLine, [BufferLine]),
     curLine  :: Int,
-    numLines :: Int} -- todo: add missing stuff
+    numLines :: Int} -- TODO: add missing stuff
   deriving Show
 
 data BufferLine = BufferLine String -- TODO: add more attrs
@@ -72,8 +72,8 @@ openLine :: Buffer -> Bool -> Buffer
 openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) }
 			|	otherwise	=	buff { contents = oF (contents buff), numLines = (numLines buff + 1) }
 	where
-		oT	=	\(prev, l, sig) -> ( l : prev, BufferLine "", sig)
-		oF	=	\(prev, l, sig) -> ( prev , BufferLine "", l : sig)
+		oT	=	\(prev, l, sig) -> ( l : prev, loadLine "", sig)
+		oF	=	\(prev, l, sig) -> ( prev , loadLine "", l : sig)
 
 -- equivalent to pressing J in normal mode of vim.
 joinLine :: Buffer -> Buffer
@@ -81,7 +81,7 @@ joinLine buff	=	doIt (contents buff)
 	where
 		doIt	= \(prev, l@(BufferLine ls), sig) -> case sig of
 --						Non-empty line, add a space in the middle
-						(BufferLine s@(_:_) ):ss -> buff { contents = (prev, BufferLine (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
+						(BufferLine s@(_:_) ):ss -> buff { contents = (prev, loadLine (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
 --						Empty line, consume line
 						(BufferLine _ ):ss -> buff { contents = (prev, l, ss) , numLines = (numLines buff - 1) }
 --						No next line... nothing

@@ -1,10 +1,17 @@
+
+{-#OPTIONS -XMultiParamTypeClasses #-}
+
 module Main where
 import BufferManager(BManager,BM,initBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
 import Graphics.Vty
 import Data.Word
+import Control.Monad.State
+import Control.Monad.Reader
+import Data.List(unfoldr)
 ------ Data definitions ------
+
 
 --Data holder of a windows tiling manager
 --Except the very last line, the whole terminal is described by the layout (except maybe overlays)
@@ -34,6 +41,9 @@ initWTM ref = WTMa {lo = NoWin
                         ,bm = ref
                         }
 
+instance MonadState WTManager WTM where
+    get = WTM (\wtma -> (wtma,wtma))
+    put wtm = WTM (\wtma -> (wtm,()))
 --Data representing current tiling. example:
 --
 -- Hspan 14 9 [Vspan 5 5 [Window 3 3 b1,Window 3 2 b2],Window 8 6 b3]
@@ -61,8 +71,8 @@ data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Window Int Int Int -- Window with buffer number
              |NoWin
 --To navigate through the layout
-bgcolor = def_attr
-dum = def_attr
+bgcolor = def_attr `with_fore_color` red
+dum = def_attr `with_style` reverse_video
 
 main :: IO ()
 main = mkVty >>= \vty -> 
@@ -81,15 +91,31 @@ printloop vty wtm w h= do
                         EvResize nx ny -> printloop vty wtm (fromIntegral nx) (fromIntegral ny)
                         _ -> return ()
 
-armarIm w h wtm =   bordeSuperior w
-                 <->(printWTM w (h-3) wtm)
-                 <->bordeInferior w
+armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+                 else bordeSuperior w
+                      <->(printWTM w (h-3) wtm)
+                      <->bordeInferior w
+{-
 
+data WTManager = WTMa {lo :: Layout -- current layout
+                      ,curwdw :: [Int] -- current window being used
+                      ,wtmH :: Int -- height in characters of window
+                      ,wtmW :: Int -- width in characters of window
+                      ,bm :: BManager
 
+data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
+             |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
+             |Window Int Int Int -- Window with buffer number
+             |NoWin
+
+-}                     
 bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
-printWTM w h wtm = char_fill dum ' ' w h
-                
+printWTM w h wtm = printLayout (lo wtm) w h
+printLayout lOut w h = case lOut of
+                        NoWin -> printNoWin w h
+                        Hspan x y xsL = unfoldr (\(acc,((l,h:xs)) -> if acc > 0 then Just (printLayout x w 
+               
 --updateThread :: TVar BManager -> IO ()
 --updateThread v state = do
 --  state' <- doSomething state
