@@ -99,14 +99,18 @@ main = mkVty >>= \vty ->
         printloop vty wtm w h >>
         shutdown vty
 
-getCommand :: String -> Vty -> WTManager -> Word -> Word -> IO ()
-getCommand s vty wtm w h= do nEv <- next_event vty
-                             case nEv of
-                               EvKey (KASCII c) _ -> let newS = s ++ [c] 
-                                                     in do update vty (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
-                                                           getCommand newS vty wtm w h
-                               EvKey (KEnter) _ -> update vty (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
-                               _ -> printloop vty wtm w h
+getKey :: WTManager -> IO Event
+getKey wtm = next_event (vty wtm)
+
+getCommand :: String -> WTManager -> Word -> Word -> IO ()
+getCommand s wtm w h= do nEv <- next_event (vty wtm)
+                         case nEv of
+                           EvKey (KASCII c) _ -> let newS = s ++ [c] 
+                                                 in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
+                                                       getCommand newS wtm w h
+                           EvKey (KEnter) _ -> update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
+                           EvResize nx ny -> printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
+                           _ -> update (vty wtm) (pic_for_image $ armarCommand s (fromIntegral w) (fromIntegral h) wtm)
                       
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
@@ -114,15 +118,12 @@ printloop vty wtm w h= do
                     nextEV <- next_event vty
                     case nextEV of 
                         EvKey (KASCII 'q') [] -> return ()
-                        EvKey (KASCII ':') _ -> getCommand "" vty wtm w h
+                        EvKey (KASCII ':') _ -> getCommand ":" wtm w h
                         EvResize nx ny -> printloop vty (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny)
                         _ -> printloop vty wtm w h
 
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                         else bordeSuperior w
-                             <->(printWTM wtm)
-                             <->bordeSuperior w
-                             <->string def_attr s
+                         else (printWTM wtm) <-> string def_attr s
                        
 
 armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
