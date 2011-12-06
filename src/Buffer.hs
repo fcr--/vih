@@ -45,23 +45,11 @@ readFile fn = fmap (load . noNull . lines) $ S.readFile fn
 newBuf :: Buffer
 newBuf = Buffer { contents = ([], loadLine [] ,[]), curLine = 0, numLines = 1, grammar = M.empty, colors = M.empty}
 
--- TODO : end of line at the end of file.
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: FilePath -> Buffer -> IO ()
 writeFile fp buf = S.writeFile fp (txt buf)
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
-
---writeFile :: FilePath -> Buffer -> IO ()
---writeFile fp buf = S.writeFile fp (txt buf)
--- where txt :: Buffer -> String
---       txt b
---           | numLines b == 1 = unLoadLine (Buffer.getLine b)
---          | otherwise = txt' (firstLine b) (lastLine b)
---       txt' :: Buffer -> Bool -> String
---       txt' b True = unLoadLine (Buffer.getLine b)
---       txt' b False = let newB = lineDown b
---                     in unLoadLine (Buffer.getLine b) ++ "\n" ++ txt' newB (lastLine newB)
 
 firstLine :: Buffer -> Buffer
 firstLine buff
@@ -88,7 +76,7 @@ lineDown buff
   | curLine buff == numLines buff - 1  = buff
   | otherwise          = buff { contents = newContents, curLine = newCurLine }
     where
-    newContents = (\(p,c,n)-> ( (c : p , head n, tail n)) $ contents buff
+    newContents = (\(p,c,n)->   (c : p , head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
 
 getLine :: Buffer -> BufferLine
