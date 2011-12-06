@@ -8,8 +8,9 @@ import qualified Data.Map as M
 
 -- TODO : Testing
 
+
 haskell = parseGrammar $ unlines [
-  "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / ' ' / '\n' )*;",
+  "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / . )*;",
 
   "comment = \"--\" (!'\n'.)* / multicomment  ; ",
 
@@ -29,7 +30,7 @@ haskell = parseGrammar $ unlines [
 
   "float = num+ ('.' num+)?;",
 
-  "plain = (!(num/' '/'\n').) (!(' '/'\n').)*;",
+  "plain = (alphamin / alphamay / num)+;",
 
   "alphamin = 'a'..'z';",
   "alphamay = 'A'..'Z';",
@@ -69,13 +70,16 @@ main :: IO ()
 main = do
 	vty <- mkVty
 	file <- S.readFile "Terminal.hs"
-        update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).(\(Right x) -> x).highlight) $ take 30 $  lines file
-	nextEV <- next_event vty
-	case nextEV of
-		_ -> update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).(\(Right x) -> x).highlight) $ take 30 $ drop 30 $  lines file
-	nextEV <- next_event vty
-	case nextEV of
-		_ -> return ()
+	let line = map ((foldr (<|>) empty_image).(\(Right x) -> x).highlight) $ lines file
+        update vty $ pic_for_image $ foldr (<->) empty_image $ take 30 line
+	loop line vty
         shutdown vty
+
+loop file vty = do
+			nextEV <- next_event vty
+			case nextEV of
+				EvKey ( KDown ) [] -> update vty ( pic_for_image $ foldr (<->) empty_image $ take 30 $   tail file ) >> loop (tail file) vty
+				EvKey (KASCII q) [] -> return()
+				_ -> loop file vty
 
 
