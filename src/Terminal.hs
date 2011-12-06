@@ -97,14 +97,31 @@ main = mkVty >>= \vty ->
         printloop vty wtm w h >>
         shutdown vty
 
+getCommand :: String -> Vty -> WTManager -> Word -> Word -> IO ()
+getCommand s vty wtm w h= do nEv <- next_event vty
+                             case nEv of
+                               EvKey (KASCII c) _ -> let newS = s ++ [c] 
+                                                     in do update vty (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
+                                                           getCommand newS vty wtm w h
+                               EvKey (KEnter) _ -> update vty (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
+                               _ -> printloop vty wtm w h
+                      
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
                     update vty (pic_for_image $ armarIm (fromIntegral w) (fromIntegral h) wtm)
                     nextEV <- next_event vty
                     case nextEV of 
                         EvKey (KASCII 'q') [] -> return ()
+                        EvKey (KASCII ':') _ -> getCommand "" vty wtm w h
                         EvResize nx ny -> printloop vty (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny)
                         _ -> printloop vty wtm w h
+
+armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+                         else bordeSuperior w
+                             <->(printWTM wtm)
+                             <->bordeSuperior w
+                             <->string def_attr s
+                       
 
 armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
