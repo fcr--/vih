@@ -1,8 +1,9 @@
 module TestHighlighting (highlight) where
-import Peg.PegParser
+import Peg.PegParser hiding (char)
 import Peg.Peg
-import Graphics.Vty.Attributes
+import Graphics.Vty
 import Data.Maybe (fromJust)
+import qualified System.IO as S (readFile)
 import qualified Data.Map as M
 
 -- TODO : Testing
@@ -14,7 +15,7 @@ haskell = parseGrammar $ unlines [
 
   "multicomment = \"{-\" (\"--\" / multicomment / !(\"-}\").)* \"-}\" ? ;",
 
-  "string = '\"' (!'\"'.)* '\"';",
+  "string =  '\"' (!'\"'.)* '\"';",
 
   "reserved  = '=' / '|' / \"..\" / \"::\" / '@' /  '~' / \"->\" / \"<-\" /  words;",
 
@@ -34,22 +35,47 @@ haskell = parseGrammar $ unlines [
   "alphamay = 'A'..'Z';",
   "num = '0'..'9';"]
 
+-- atributos de fondo.
+def = def_attr
+
+color = with_fore_color def
+
+bold' = flip with_style $ bold 
+
 -- type -> Color, TODO : colors
-colors :: M.Map String Color
-colors = M.fromList [ ("comment", blue), ("string",red), ("reserved",bright_green), ("float",bright_red), ("Cons",green),("plain",black)]
+colors :: M.Map String (Char -> Image)
+colors = M.fromList 	[   
+				("comment", char $ color blue),
+				("string", char $ color red),
+				("reserved",char $ bold' $ color yellow),
+				("float", char $ color bright_red),
+				("Cons", char $ bold' $ color green),
+				("plain", char $ color white)
+			]
 
--- TEST <----
-test :: Either String [(Char,Color)]
-test = highlight "case 99 of True -> of"
-
--- assign colors to each character
-highlight :: String -> Either String [(Char,Color)]
+-- assign attributes to each character
+highlight :: String -> Either String [Image]
 highlight input = case pegMatch ( haskell M.! "all" )  input  of
 			Right xs -> Right (map f xs)
 			Left s	-> Left s -- should not happen .. ever
 		where
 --			if we have a type, go through the map
-			f (c,(_:ty:_))	=	(c, M.findWithDefault black ty colors)
+			f (c,(_:ty:_))	=	M.findWithDefault (char $ color white) ty colors $ c
 --			otherwise default to black
-			f (c,_)		=	(c,black)
+			f (c,_)		=	(char $ color white) c
+
+-- Test ...
+main :: IO ()
+main = do
+	vty <- mkVty
+	file <- S.readFile "Terminal.hs"
+        update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).(\(Right x) -> x).highlight) $ take 30 $  lines file
+	nextEV <- next_event vty
+	case nextEV of
+		_ -> update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).(\(Right x) -> x).highlight) $ take 30 $ drop 30 $  lines file
+	nextEV <- next_event vty
+	case nextEV of
+		_ -> return ()
+        shutdown vty
+
 
