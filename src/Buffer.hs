@@ -1,6 +1,8 @@
 module Buffer where
 import Peg.PegParser
 import Graphics.Vty
+import Debug.Trace -- para jorobar
+import qualified TestHighlighting as TestHighlighting (highlight)
 import qualified Data.Map as M
 import qualified System.IO as S (readFile,writeFile)
 
@@ -9,12 +11,11 @@ data Buffer = Buffer {
 	curLine  :: Int,
 	numLines :: Int,
 	grammar  :: Defs,
-	colors   :: M.Map String (Char -> Image) -- TODO : ...
-	} -- TODO: Cursor y atributos
+	colors   :: M.Map String (Char -> Image) 
+	} -- TODO: atributos de los no-terminales
 
-data BufferLine = BufferLine	{  line :: String -- , memo :: [Image]   TODO: tabla de memoization...
-				}
--- TODO : show
+data BufferLine = BufferLine	{  line :: String , memo :: [Image] }-- tabla de memoization...
+
 instance Show Buffer where
 	show buff = "Buffer (" ++ show pr ++ ", " ++ show c ++ ", " ++ show sig ++ ") " ++ show cr ++ " " ++ show nl
 		where
@@ -79,19 +80,9 @@ lineDown buff
     newContents = (\(p,c,n)->   (c : p , head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
 
-getLine :: Buffer -> BufferLine
-getLine buff = let (p,c,n) = contents buff in c
-
-
--- TODO : Highlighting for a give buffer.
--- colorLine :: Buffer -> [Image]
-
-updateLine :: Buffer -> BufferLine -> Buffer
-updateLine buff cr	=	let (p,_,s) = contents buff in	buff { contents = (p,cr,s) }
-
 -- dd
 deleteLine :: Buffer -> Buffer
-deleteLine buff		 	|	nl == 1		=	buff {contents =  ([],loadLine "",[]) }
+deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine "",[]) }
 				|	null sig	=	buff { contents = ( tail pr, head pr, sig), curLine = (cl-1), numLines =  (nl-1)}
 				|	otherwise	=	buff { contents =  ( pr, head sig, tail sig), curLine =  cl, numLines =  (nl-1)}
 	where
@@ -111,9 +102,9 @@ openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = 
 joinLine :: Buffer -> Buffer
 joinLine buff	=	doIt (contents buff)
 	where
-		doIt	= \(prev, l@(BufferLine ls ), sig) -> case sig of
+		doIt	= \(prev, l@(BufferLine ls _), sig) -> case sig of
 --						Non-empty line, add a space in the middle
-						(BufferLine s@(_:_) ):ss -> buff { contents = (prev, loadLine (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
+						(BufferLine s@(_:_) _):ss -> buff { contents = (prev, loadLine (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
 --						Empty line, consume line
 						(_:ss) -> buff { contents = (prev, l, ss) , numLines = (numLines buff - 1) }
 --						No next line... nothing
@@ -121,8 +112,49 @@ joinLine buff	=	doIt (contents buff)
 
 ------ BufferLine functions ------
 
+
+-- TODO : HIGHLIGHTING WITH ITS OWN GRAMMAR
+-- does the highlighting of the new line
 loadLine :: String -> BufferLine
-loadLine s = BufferLine s -- []
+loadLine s = BufferLine s $ (\(Right x) -> x) $ (TestHighlighting.highlight s) -- []
 
 unLoadLine :: BufferLine -> String
 unLoadLine bl = line bl
+
+
+highlight :: Buffer -> ([[Image]],[Image],[[Image]])
+highlight buff |	trace "FALTA LO DE EXTRAER DE UN ARCHIVO" False	= undefined
+highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
+
+
+------ Various functions ------
+
+-- Get the contents of the currennt line
+
+getLine :: Buffer -> String
+getLine buff = let (p,c,n) = contents buff in unLoadLine c
+
+-- Set the contents of the current line
+setLine :: String -> Buffer -> Buffer
+setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine cr,s) }
+
+-- Get the line number of the cursor
+getLineNumber :: Buffer -> Int
+getLineNumber buff = curLine buff
+
+-- Respecto al 0
+getY :: Buffer -> Int
+getY buff = curLine buff
+
+-- Respecto al 0
+setY :: Int -> Buffer  -> Buffer
+setY y buff	=	find cl (contents buff) 
+	where
+		fy = max 0 $ min ((numLines buff) - 1) y
+		cl = curLine buff
+		find pos cont@(pr,c,sig) --	|	trace (show pos ++ " " ++ show c) False	= undefined
+						|	pos > fy	= find (pos-1) ( tail pr, head pr, c : sig)
+						|	pos < fy	= find (pos+1) ( c:pr , head sig, tail sig)
+ 						|	otherwise 	= buff { contents = cont , curLine = fy}
+
+
