@@ -121,7 +121,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
 data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |Hspan Int Int [(Layout,Int)] --Horizontal span with sizes
              |Window {size::(Int,Int), buffNum::Int} -- Window with buffer number
-             |NoWin
+             |NoWin {size:: (Int,Int)}
 
 -}                     
 bordeSuperior w = char_fill dum '-' w 1
@@ -142,3 +142,39 @@ printLayout lOut = case lOut of
     where barraVert y = char_fill cbarras '|' 1 y
           barraHoriz x = char_fill cbarras '-' x 1
 
+--Imprimir un buffer en una ventana
+
+--Abrir ventana nueva
+
+--Asociar buffer a ventana
+assocBuffer :: Int -> [Int] -> WTManager -> WTManager
+assocBuffer bId wId wtm = wtm{lo = asBuf bId wId (lo wtm)}
+asBuf :: Int -> [Int] -> Layout -> Layout
+asBuf bId (w:ws) lo = case lo of
+                        (Window (x,y) z) -> Window (x,y) bId
+                        (NoWin (x,y)) -> Window (x,y) bId
+                        (Vspan w h lst) -> Vspan w h (take (w-1) lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop w lst)
+                        (Hspan w h lst) -> Hspan w h (take (w-1) lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop w lst)
+--Hacer split Horizontal con param = True, vertical con param = False
+splitX :: Bool -> WTManager -> WTManager
+splitX param wtm = wtm{ lo = splitLoX param (lo wtm) cw, curwdw = (\xs -> init xs ++ (map (+1) [last xs])) cw } where cw = curwdw wtm
+splitLoX :: Bool -> Layout -> [Int] -> Layout
+splitLoX param l (x: xs@(y':ys)) = case l of
+                (Vspan w h lst) -> Vspan w h ((take (x-1)) lst ++ [(\(lay,height) -> (splitLoX param lay xs,height)) (lst!!x)] ++ drop x lst)
+                (Hspan w h lst) -> Hspan w h ((take (x-1)) lst ++ [(\(lay,width) -> (splitLoX param lay xs,width)) (lst!!x)] ++ drop x lst)
+                (Window (x,y) z) -> Window (x,y) z
+                (NoWin (x,y)) ->  NoWin (x,y)
+splitLoX param l [x] |param = case l of
+                                (Vspan w h lst) -> Vspan w h (take (x-1) lst ++ [(splitSpan param (lst!!x) w)] ++ (drop x lst))
+                                (Hspan w h lst) -> Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(NoWin (0,0),0)] ++  drop x lst))
+                                (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,1),(NoWin (0,0),0)]
+                     |not param = case l of
+                                (Vspan w h lst) -> Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(NoWin (0,0),0)] ++ drop x lst))
+                                (Hspan w h lst) -> Hspan w h (take (x-1) lst ++ [(splitSpan param (lst!!x) h)] ++ (drop x lst))
+                                (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,1),(NoWin (0,0),0)] 
+                                (NoWin (w,h)) -> resizeLo w h $ Vspan w h [(NoWin (w,h),1),(NoWin (w,h),1)]
+    where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
+                                   |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
+--Hacer split V
+
+getLine :: WTManager -> String -> IO (Maybe String)
