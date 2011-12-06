@@ -20,6 +20,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,wtmH :: Int -- height in characters of window
                       ,wtmW :: Int -- width in characters of window
                       ,bm :: BManager
+                      ,vty :: Vty
                       }
 
 
@@ -33,12 +34,13 @@ instance Monad WTM where
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
-initWTM :: BManager -> WTManager
-initWTM ref = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
+initWTM :: BManager -> Vty -> WTManager
+initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
                         ,curwdw = [0]
                         ,wtmH = 0
                         ,wtmW = 0
                         ,bm = ref
+                        ,vty = vty
                         }
 
 instance MonadState WTManager WTM where
@@ -91,7 +93,7 @@ resizeLo w h lo = case lo of
 
 main :: IO ()
 main = mkVty >>= \vty -> 
-        let wtm = initWTM initBM in
+        let wtm = initWTM initBM vty in
         next_event vty >>= \k -> 
         display_bounds ( terminal vty ) >>= \(DisplayRegion w h) ->
         printloop vty wtm w h >>
@@ -149,7 +151,9 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                     where
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
+
 printWTM wtm = printControl (lo wtm) <-> printLayout (lo wtm)
+
 printControl lOut = string def_attr $show lOut
 printLayout lOut = case lOut of
                         NoWin (x,y) -> printNoWin x y
@@ -193,5 +197,3 @@ splitLoX param l [x] |param = case l of
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
 --Hacer split V
-
-getLine :: WTManager -> String -> IO (Maybe String)
