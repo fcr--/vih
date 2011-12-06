@@ -176,3 +176,5 @@ splitLoX param l [x] |param = case l of
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
 --Hacer split V
+
+getLine :: WTManager -> String -> IO (Maybe String)
