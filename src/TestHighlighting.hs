@@ -10,7 +10,7 @@ import qualified Data.Map as M
 haskell = parseGrammar $ unlines [
   "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / ' ' / '\n' )*;",
 
-  "comment = \"--\" (!'\n'.)* / \"{-\" (comment / !(\"-}\"). )* \"-}\" / \"{-\" (!(\"-}\").)* \"-}\" ; ",
+  "comment = \"--\" (!'\n'.)* / \"{-\" (comment / !(\"-}\"). )* \"-}\" / \"{-\" (!(\"-}\").)*  ; ",
 
   "string = '\"' (!'\"'.)* '\"';",
 
