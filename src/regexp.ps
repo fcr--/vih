@@ -1,0 +1,46 @@
+/regexp { % <subject> <regexp> regmatch <list of matches>
+  % first parse the regexp:
+  % "foo\(b\|a\)" -> {"f" "o" "o" {1 "b" /or "a"}}
+  begin
+    /s exch def /i 0 def /n 0 def /b 0 def
+    /quot <<
+      "(" {
+	[ i 1 + dup /i exch def
+	/n n 1 + def
+      }
+      ")" {
+	/n n 1 - def
+	]
+      }
+      "|" {/or}
+      "{" {
+	s tail "}" search {
+	} {
+	} elseif
+      }
+    >> def
+    [ s {
+      s null {exit} if
+      s head
+      dup "\\" eq {
+	pop
+	/s s tail def
+	s null {pop exit} if
+	quot s head known {
+	  quot s head get exec
+	} {
+	  s head
+	} elseif
+	/s s tail def
+      } if
+    } loop
+    0 1 n {pop ]} for
+  end
+%  begin
+%    /re exch def
+%    /str exch def
+%    [""]
+%    /i 0 def
+%    /l str length def
+%  end
+} def
