@@ -131,8 +131,15 @@ string = PegAster id $
   where
   escaped = M.fromList [('n','\n'),('r','\r'),('t','\t')]
 
+-- ( isSpace / '#' (!"\n" .)* .?)
 blanks :: PegGrammar a
-blanks = PegAster undefined $ PegTerm undefined (and . map isSpace)
+blanks = PegAster undefined $ 
+  PegAlt undefined [
+    PegTerm undefined (and . map isSpace),
+    PegCat undefined [
+      PegEqToken undefined "#",
+      PegAster undefined $ PegTerm undefined ("\n"/=),
+      PegOpt undefined $ PegTerm undefined (const True)]]
 
 -- return a bunch of definitions:
 parseGrammar :: String -> Defs

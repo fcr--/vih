@@ -329,7 +329,7 @@ Operators (sorted by name):
     and returns the result from the search. If the search is successfull, the
     haystack is split in three according to the searched needle. For instance:
 
-    "another day" "th" search   =>   "er day" "th" "an" 1
+    "another day" "th" search   =>   "er day" "th" "ano" 1
     "foo bar" "A" search        =>   "foo bar" 0
 
   setglobaldict:	dict setglobaldict -

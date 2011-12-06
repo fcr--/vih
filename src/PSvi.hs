@@ -194,7 +194,10 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("exit", psOpExit),     ("exec", psOpExec),
         -- data:
         ("[", psOpMark),        ("]", psOpCreateList),  ("<<", psOpMark),
-        (">>", psOpCreateDict), ("length", psOpLength)
+        (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
+        ("def", psOpDef),
+        ("begin", psOpBegin),   ("end", psOpEnd),
+        ("head", psOpHead),     ("tail", psOpTail)
         ]
 
 
@@ -454,9 +457,50 @@ psOpCreateDict st
 psOpLength :: PSState -> IO (Either String PSState)
 psOpLength st = ensureNArgs "length" 1 st $ case stack st of
     (PSString s : ss) -> return $ Right st {stack = PSInt (length s) : ss}
-    (PSMap m : ss) -> return $ Right st {stack = (PSInt . length . M.toList) m : ss}
+    (PSMap m : ss) -> return $ Right st {stack = (PSInt . M.size) m : ss}
     (PSList l : ss) -> return $ Right st {stack = PSInt (length l) : ss}
     _ ->return $ Left "psInterp error: length: not a string/dict/list on top of the stack"
+
+psOpNull :: PSState -> IO (Either String PSState)
+psOpNull st = ensureNArgs "null" 1 st $ case stack st of
+    (PSString s : ss) -> return $ Right st {stack = PSInt (if null s then 1 else 0) : ss}
+    (PSMap m : ss) -> return $ Right st {stack = PSInt (if M.size m == 0 then 1 else 0) : ss}
+    (PSList l : ss) -> return $ Right st {stack = PSInt (if null l then 1 else 0) : ss}
+    _ ->return $ Left "psInterp error: length: not a string/dict/list on top of the stack"
+
+psOpDef :: PSState -> IO (Either String PSState)
+psOpDef st = ensureNArgs "def" 2 st $ case stack st of
+    (v:k:ss) -> case dictStack st of
+        [] -> return $ Right st {globDict = M.insert k v $ globDict st, stack = ss}
+        (d:ds) -> return $ Right st {dictStack = M.insert k v d : ds, stack = ss}
+
+psOpBegin :: PSState -> IO (Either String PSState)
+psOpBegin st = return $ Right st { dictStack = M.empty : dictStack st }
+
+psOpEnd :: PSState -> IO (Either String PSState)
+psOpEnd st = return $ case dictStack st of
+    [] -> Left "psInterp error: end: empty dictionary stack"
+    (_:ds) -> Right st { dictStack = ds }
+
+psOpHead :: PSState -> IO (Either String PSState)
+psOpHead st = ensureNArgs "head" 1 st $ case stack st of
+    (PSString s : ss) -> return $ case s of
+        (c:_) -> Right st {stack = PSString [c] : ss}
+        _ -> Left "psInterp error: head: null string"
+    (PSList s : ss) -> return $ case s of
+        (i:_) -> Right st {stack = i : ss}
+        _ -> Left "psInterp error: head: null list"
+    _ ->return $ Left "psInterp error: head: not a string/list on top of the stack"
+
+psOpTail :: PSState -> IO (Either String PSState)
+psOpTail st = ensureNArgs "tail" 1 st $ case stack st of
+    (PSString s : ss) -> return $ case s of
+        (_:cs) -> Right st {stack = PSString cs : ss}
+        _ -> Left "psInterp error: tail: null string"
+    (PSList s : ss) -> return $ case s of
+        (_:is) -> Right st {stack = PSList is : ss}
+        _ -> Left "psInterp error: tail: null list"
+    _ ->return $ Left "psInterp error: tail: not a string/list on top of the stack"
 
 ------ BUFFER MANAGER WRAPPER ------
 
