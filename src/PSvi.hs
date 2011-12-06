@@ -518,6 +518,10 @@ psOpUpdate st = do
     atomically $ writeTVar (bufferManager st) (currentBM st)
     return $ Right st
 
+psOpGetLine :: PSState -> IO (Either String PSState)
+psOpGetLine st do
+    
+
 
 --main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
 
