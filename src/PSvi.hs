@@ -521,4 +521,15 @@ psOpUpdate st = do
 
 --main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
 
+main = psNewState >>= work
+    where
+    work :: PSState -> IO a
+    work s = do
+        line <- getLine
+        case psParse line of
+            Left m -> print m >> work s
+            Right c -> psExec s c >>= \r -> case r of
+                Left m -> print m >> work s
+                Right s' -> print s' >> work s'
+
 -- vi: et sw=4
