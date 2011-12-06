@@ -5,12 +5,12 @@ import Graphics.Vty.Attributes
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
 
--- TODO : Add Multi-line comments
+-- TODO : Testing
 
 haskell = parseGrammar $ unlines [
   "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / ' ' / '\n' )*;",
 
-  "comment = \"--\" (!'\n'.)*; # FALTA MULTILINEA",
+  "comment = \"--\" (!'\n'.)* / \"{-\" (comment / !(\"-}\"). )* \"-}\" / \"{-\" (!(\"-}\").)* \"-}\" ; ",
 
   "string = '\"' (!'\"'.)* '\"';",
 
@@ -22,7 +22,7 @@ haskell = parseGrammar $ unlines [
   "      / \"instance\" / \"let\" / \"module\" / \"newtype\" / \"of\"",
   "      / \"qualified\" / \"then\" / \"where\" / \"type\" ;",
 
-  "Cons = alphamay (alphamin / alphamay / num / \"'\"  / '_' / '#') *;",
+  "Cons = alphamay (alphamin / alphamay / num / \"'\"  / '_' / '#' / '.') *;",
 
   "float = num+ ('.' num+)?;",
 
