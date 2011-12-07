@@ -1,6 +1,6 @@
-import Terminal.hs
+import Terminal
 import Control.Monad.Reader
-import BufferManager.hs
+import BufferManager
 -- Operaciones para navegar el archivo actual
 --
 {-
@@ -40,7 +40,7 @@ writeFile :: WTManager -> Maybe String -> IO WTManager
 setX xs nx = init xs ++ [nx]
 bmOp :: (BManager->Int->a)->WTManager->a
 bmOp f wtm = snd.runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
-    where (x:xs) nav lay =
+    where nav (x:xs) lay =
             case lay of
                 (Hspan w h lst) -> nav xs (fst $lst!!x)
                 (Vspan w h lst) -> nav xs (fst $lst!!x)
@@ -50,9 +50,9 @@ loOp :: (BManager->Int->a)->(Layout,Layout)->WTManager->(WTManager,a)
 loOp f wtm g= let localLo = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm) in (localLo, f bm z)
     where
         navIO (x:xs) lo = 
-            case lo of (Hspan w h lst) = return $ Hspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
-                       (Vspan w h lst) = return $ Vspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
-                       win@(Window (x,y) z) = g win
+            case lo of (Hspan w h lst) -> return $ Hspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
+                       (Vspan w h lst) -> return $ Vspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
+                       win@(Window (x,y) z) -> g win
 
 
 getBuffSize wtm = getBuffSizeBM (bm wtm)
@@ -60,10 +60,10 @@ getBuffSize wtm = getBuffSizeBM (bm wtm)
 getLine wtm lnum = bmOp getLineBM wtm 
 setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \cosa-> showWTM.fst cosa >> return cosa
 
-getXpos wtm = getXpos = last.curwdw wtm
+getXpos wtm = last.curwdw wtm
 getYpos wtm = bmOp getYposBM wtm
-setXpos wtm nx = return ( wtm{curwdw = setX (curwdw wtm) nx ) >>= \cosa -> showWTM cosa >> return cosa
-setYpos wtm ny = return (\(wtman,newBM) -> wtman{bm = newBM}) $ loOp setYposBM id wtm >>= \cosa -> showWTM cosa >> return cosa
+setXpos wtm nx = return ( wtm{curwdw = setX (curwdw wtm) nx} ) >>= \cosa -> showWTM cosa >> return cosa
+setYpos wtm ny = return (\(wtman,nBM) -> wtman{bm = nBM}) $ loOp setYposBM id wtm >>= \cosa -> showWTM cosa >> return cosa
 
 getXsize wtm = last $ curwdw wtm
 {-
