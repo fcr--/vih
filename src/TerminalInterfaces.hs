@@ -62,6 +62,7 @@ setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \cosa-> showWTM.fst
 getXpos wtm = getXpos = last.curwdw wtm
 getYpos wtm = bmOp getYposBM wtm
 setXpos wtm Int = return ( wtm{
+
 {-
 getXpos :: WTManager -> Int
 getYpos :: WTManager -> Int

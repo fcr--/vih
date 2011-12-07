@@ -2,7 +2,7 @@
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
 module Terminal(WTManager,initWTM,showWTM,getKey,getCommand) where
-import BufferManager(BManager,BM,initBM)
+import BufferManager(BManager,newBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
 import Graphics.Vty
