@@ -81,7 +81,7 @@ read' s	|	s == "fblack"	=	mempty { fgColor = Just black}
 --	mappend a b = 
 
 
-reader :: PegGrammar (Map String [Attr])
+reader :: PegGrammar (Map String Attr)
 
 --   PegAster   :: ([b] -> a)    -> (PegGrammar b) -> PegGrammar a
 -- reader :: ([(String, [Attr])] -> Map String [Attr]) - > PegGrammar (String,[Attr]) -> ...
@@ -98,7 +98,7 @@ space = PegPlus undefined $ PegTerm undefined (and . map isSpace)
 
 data Tri a b c = L a | M b | R c deriving Show
 
-definition = PegCat ( \(_:(L s):_:_:_:(M att):_:(R xs):_ ) -> (s, att:xs) )
+definition = PegCat ( \(_:(L s):_:_:_:(M att):_:(R xs):_ ) -> (s, mconcat (att:xs) ) )
 		 [	spaces, name, spaces, PegTerm undefined (=="="),
 				spaces, attr, spaces, PegAster R orAttr , PegTerm undefined (==";")]
 
