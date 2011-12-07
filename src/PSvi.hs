@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module PSvi (psParse,
+module PSvi (main,psParse,
              PSObject(..),
              psNewState,
              psInterp,
@@ -12,8 +12,10 @@ import Peg.Peg
 import Data.Char
 import Control.Applicative
 import Control.Concurrent.STM
+import System.IO
 import qualified Data.Map as M
 import qualified Data.Bits as B
+import qualified Text.Regex.PCRE.String as PCRE
 
 data PSObject = PSString !String
               | PSInt !Int
@@ -197,7 +199,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
         ("def", psOpDef),
         ("begin", psOpBegin),   ("end", psOpEnd),
-        ("head", psOpHead),     ("tail", psOpTail)
+        ("head", psOpHead),     ("tail", psOpTail),
+        ("regexp", psOpRegexp), ("regsub", psOpRegsub)
         ]
 
 
@@ -518,6 +521,47 @@ psOpUpdate st = do
     atomically $ writeTVar (bufferManager st) (currentBM st)
     return $ Right st
 
+psOpGetLine :: PSState -> IO (Either String PSState)
+psOpGetLine st = undefined
+
+psOpRegexp :: PSState -> IO (Either String PSState)
+psOpRegexp st = ensureNArgs "regexp" 2 st $ case stack st of
+    (PSString subj:PSString re:ss) -> do
+        res <- PCRE.compile PCRE.compBlank PCRE.execBlank re
+        case res of
+            Left _ -> return $ Right $ st {stack = PSInt 0 : stack st}
+            Right regex -> do
+                res <- PCRE.regexec regex subj
+                return $ case res of
+                    Left _ -> Right $ st {stack = PSInt 0 : ss}
+                    Right result -> Right $ st {stack = PSInt 1 : ss}
+    _ -> return $ Left "psInterp error: regexp: types not string, string on top of the stack"
+
+psOpRegsub :: PSState -> IO (Either String PSState)
+psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
+    (PSString replstr:PSString subj:PSString re:ss) -> do
+        res <- PCRE.compile PCRE.compBlank PCRE.execBlank re
+        case res of
+            Left _ -> return $ Right $ st {stack = PSString subj : stack st}
+            Right regex -> do
+                res <- PCRE.regexec regex subj
+                return $ case res of
+                    Left _ -> Right $ st {stack = PSString subj : ss}
+                    Right result -> Right $ st {stack = PSString (repl replstr subj result) : ss}
+    _ -> return $ Left "psInterp error: regsub: types not string, string on top of the stack"
+    where
+    repl :: String -> String -> Maybe (String, String, String, [String]) -> String
+    repl repl subj r = case r of Nothing -> subj; Just res@(p,_,po,_) -> p ++ repl' repl res ++ po
+    repl' :: String -> (String, String, String, [String]) -> String
+    repl' (b:c:cs) res@(pre, matched, post, groups)
+        | b == '\\' && '1' <= c && c <= '9' = ((groups ++ repeat "") !! (fromEnum c - 48)) ++ repl' cs res
+        | b == '\\' = c : repl' cs res
+        | b == '&' = matched ++ repl' (c:cs) res
+        | otherwise = b : repl' (c:cs) res
+    repl' (c:cs) res@(pre, matched, post, groups)
+        | c == '&' = matched ++ repl' cs res
+        | otherwise = c : repl' cs res
+    repl' "" _ = ""
 
 --main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
 
@@ -525,11 +569,13 @@ main = psNewState >>= work
     where
     work :: PSState -> IO a
     work s = do
+        putStr ((show $ length $ stack s) ++ "> ")
+        hFlush stdout
         line <- getLine
         case psParse line of
-            Left m -> print m >> work s
+            Left m -> putStrLn m >> work s
             Right c -> psExec s c >>= \r -> case r of
-                Left m -> print m >> work s
+                Left m -> putStrLn m >> work s
                 Right s' -> print s' >> work s'
 
 -- vi: et sw=4

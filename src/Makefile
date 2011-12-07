@@ -1,5 +1,5 @@
 graphics:
-	ghc --make Terminal.hs
+	ghc --make TestTerminal.hs
 
 buffers:
 	ghc --make BufferManager.hs
