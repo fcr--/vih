@@ -1,7 +1,7 @@
 
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
-module Terminal(WTManager,initWTM,showWTM,getKey,getCommand) where
+module Terminal where
 import BufferManager(BManager,newBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
@@ -23,14 +23,6 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,vty :: Vty
                       }
 
-
-newtype WTM a = WTM{runWTM :: WTManager -> (WTManager, a)}
-instance Monad WTM where
- --(>>=) :: WTM a -> (a -> WTM b) -> WTM b
- wtm >>= op = WTM (\wtma -> let (interWTM,a) = runWTM wtm wtma in
-                      runWTM (op a) interWTM)
- return a = WTM (\wtm -> (wtm,a))
- 
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
@@ -43,9 +35,6 @@ initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(W
                         ,vty = vty
                         }
 
-instance MonadState WTManager WTM where
-    get = WTM (\wtma -> (wtma,wtma))
-    put wtm = WTM (\wtma -> (wtm,()))
 --Data representing current tiling. example:
 --
 -- Hspan 14 9 [Vspan 5 5 [Window 3 3 b1,Window 3 2 b2],Window 8 6 b3]
@@ -118,21 +107,23 @@ getCommand' s wtm w h= do nEv <- next_event (vty wtm)
                                                         getCommand' newS wtm w h
                             EvKey (KEnter) _ -> do update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
                                                    return (Just s)
+                            EvKey (KBS) _ -> let newS = init s
+                                             in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
+                                                   getCommand' newS wtm w h
+                            EvKey (KLeft) _ -> getCommand' s wtm w h --TODO:all
+                            EvKey (KRight) _ -> getCommand' s wtm w h --TODO:all
+                            EvKey (KEsc) _ -> do printloop (vty wtm) wtm (fromIntegral w) (fromIntegral h)
+                                                 return Nothing
                             EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
                                                  getCommand' s wtm w h
                             _ -> do update (vty wtm) (pic_for_image $ armarCommand s (fromIntegral w) (fromIntegral h) wtm)
                                     getCommand' s wtm w h
                       
+
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
                     update vty (pic_for_image $ armarIm (fromIntegral w) (fromIntegral h) wtm)
-{-                    nextEV <- next_event vty
-                     case nextEV of 
-                        EvKey (KASCII 'q') [] -> return ()
-                        EvKey (KASCII ':') _ -> getCommand ":" wtm w h 
-                        EvResize nx ny -> printloop vty (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny)
-                        _ -> printloop vty wtm w h
--}
+
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                          else (printWTM wtm) <-> string def_attr s
                        
