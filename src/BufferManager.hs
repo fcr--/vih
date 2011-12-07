@@ -6,7 +6,6 @@ import qualified Buffer as Buffer
 import System.IO
 import Prelude hiding (lookup)
 ------ the datatype of buffer controllers ------ 
-
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,maxbuffer :: Int -- highest identifier given in a session

@@ -2,7 +2,7 @@
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
 module Terminal where
-import BufferManager(BManager,newBM)
+import BufferManager(BManager,newBM,newBuffer)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
 import Graphics.Vty
@@ -30,7 +30,7 @@ initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
     (DisplayRegion w h) <- display_bounds (terminal v)
-    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v} ) >>= \wtm -> return (resizeLayout w h wtm)
+    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v} ) >>= \wtm -> return (resizeLayout (fromIntegral w) (fromIntegral h) wtm)
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -69,7 +69,7 @@ cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 
 --Function to resize the current layout to fit the new window size
 resizeLayout::Int->Int->WTManager->WTManager
-resizeLayout h w wtm = wtm{lo = (resizeLo (h-2) w) (lo wtm)}
+resizeLayout h w wtm = wtm{lo = (resizeLo (h-2) w) (lo wtm),wtmH = h, wtmW = w}
 
 resizeLo :: Int -> Int -> Layout -> Layout
 resizeLo w h lo = case lo of
@@ -93,7 +93,7 @@ getW (DisplayRegion w h) = w
 showWTM :: WTManager -> IO ()
 showWTM wtm = let vty' = (vty wtm) in
               do bnds <- display_bounds (terminal vty')
-                 printloop vty' wtm (getW bnds) (getH bnds)
+                 printloop wtm 
 
 --Function to get the next event from the Vty
 getKey :: WTManager -> IO Event
@@ -129,9 +129,9 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                  in if cur == length (comm cl)
                                                     then getCommand' cl wtm w h
                                                     else getCommand' (cl {pos = cur + 1}) wtm w h 
-                             EvKey (KEsc) _ -> do printloop (vty wtm) wtm (fromIntegral w) (fromIntegral h)
+                             EvKey (KEsc) _ -> do printloop wtm
                                                   return Nothing
-                             EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
+                             EvResize nx ny -> do printloop (resizeLayout nx ny wtm)
                                                   getCommand' cl wtm w h
                              _ -> getCommand' cl wtm w h
 
@@ -157,19 +157,20 @@ delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
              in cl {comm = a++(tail b)}
                       
 --Function that given a vty prints it on the screen
-printloop :: Vty -> WTManager -> Word -> Word -> IO ()
-printloop vty wtm w h = do update vty (pic_for_image $ armarIm (fromIntegral w) (fromIntegral h) wtm)
-
---Function that paints the command line with the accumulative string given
-armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                         else (printWTM wtm) <-> string def_attr s
-                       
+printloop :: WTManager -> IO ()
+printloop wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
 
 --Function that paints an empty window
 armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
                       <->(printWTM wtm)
                       <->bordeInferior w
+
+--Function that paints the command line with the accumulative string given
+armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+                         else (printWTM wtm) <-> string def_attr s
+                       
+
                     
 bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
@@ -196,11 +197,11 @@ printLayout lOut = case lOut of
 --Abrir ventana nueva
 newWin :: Bool {- horizontal? -} -> WTManager -> IO WTManager
 newWin horiz wtm = do
-                (newBM,bnum) <- return $ newBuffer $ bm wtm
-                (DisplayRegion w h) <- display_bounds (terminal v)
-                newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) curwdw wtm}
-                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout w h wtm
-                printWTM lWTM
+                (newBM,bnum) <- newBuffer (bm wtm) Nothing
+                (DisplayRegion w h) <- display_bounds (terminal $vty wtm)
+                newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) (curwdw wtm)}
+                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
+                printloop (lWTM)
                 return lWTM
 
 --Asociar buffer a ventana
