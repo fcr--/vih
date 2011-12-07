@@ -1,5 +1,6 @@
 import Terminal.hs
-
+import Control.Monad.Reader
+import BufferManager.hs
 -- Operaciones para navegar el archivo actual
 --
 {-
@@ -11,10 +12,57 @@ setBuffPos :: WTManager -> Int -> IO WTManager
 getBuffSize :: WTManager -> Int
 
 --Getter y setter de linea. Para sustituir toda la linea
-getLine :: WTManager -> Int -> IO (WTManager, String)
+getLine :: WTManager -> Int -> String
 setLine :: WTManager -> Int -> String -> IO (WTManager, String)
 
 --Getter y setters de posiciones en la window.
+getXpos :: WTManager -> Int
+getYpos :: WTManager -> Int
+setXpos :: WTManager -> Int -> IO WTManager
+setYpos :: WTManager -> Int -> IO WTManager
+
+--Getter de tamanio en largo (de lineas) del archivo y de largo
+--de la linea del buffer
+getXsize :: WTManager -> Int
+getYsize :: WTManager -> Int
+
+--Para mover la ventana para arriba o para abajo
+winUp,winDown :: WTManager -> IO WTManager
+
+openLine :: Bool -> WTManager -> IO WTManager
+
+--Para abrir archivos y asociarlos a un buffer en que estemos parados
+--O grabar el buffer en el que estamos parados en el archivo dado
+openFile :: WTManager -> String -> IO WTManager
+writeFile :: WTManager -> Maybe String -> IO WTManager
+--Interfaces file for WTManager (Terminal.hs)
+
+bmOp :: (BManager->Int->a)->WTManager->a
+bmOp f wtm = snd.runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
+    where (x:xs) nav lay =
+            case lay of
+                (Hspan w h lst) -> nav xs (fst $lst!!x)
+                (Vspan w h lst) -> nav xs (fst $lst!!x)
+                (Window (x,y) z) -> ask >>= \bm -> return $ f bm z
+                _ -> undefined
+loOp :: (BManager->Int->a)->(Layout,Layout)->WTManager->(WTManager,a)
+loOp f wtm g= let localLo = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm) in (localLo, f bm z)
+    where
+        navIO (x:xs) lo = 
+            case lo of (Hspan w h lst) = return $ Hspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
+                       (Vspan w h lst) = return $ Vspan w h (take x lst ++ [(\(l,s)-> (navIO xs l,s) )] ++ drop (x+1) lst)
+                       win@(Window (x,y) z) = g win
+
+
+getBuffSize wtm = getBuffSizeBM (bm wtm)
+
+getLine wtm lnum = bmOp getLineBM wtm 
+setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \cosa-> showWTM.fst cosa >> return cosa
+
+getXpos wtm = getXpos = last.curwdw wtm
+getYpos wtm = bmOp getYposBM wtm
+setXpos wtm Int = return ( wtm{
+{-
 getXpos :: WTManager -> Int
 getYpos :: WTManager -> Int
 setXpos :: WTManager -> Int -> IO WTManager
@@ -33,16 +81,8 @@ winUp,winDown :: WTManager -> IO WTManager
 openFile :: WTManager -> IO WTManager
 writeFile :: WTManager -> Maybe String -> IO WTManager
 --Interfaces file for WTManager (Terminal.hs)
+-}
 
-getBuffSize wtm = runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
-    where nav (x:xs) lay = 
-            case lay of
-                (Hspan w h lst) -> nav xs (lst!!x)
-                (Vspan w h lst) -> nav xs (lst!!x)
-                (Window (x,y) z) -> ask >>= \bm -> return $ getBuffSizeBM z bm
-                _ -> undefined
-
-getLine wtm lnum 
 {-
 getBuffPos wtm = nav (curwdw wtm) (lo wtm)
     where nav (x:xs) lay =
