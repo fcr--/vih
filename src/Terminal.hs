@@ -23,17 +23,20 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,vty :: Vty
                       }
 
+--Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
 
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
-initWTM :: IO WTManager
-initWTM = do
-    v <- mkVty
-    (DisplayRegion w h) <- display_bounds (terminal v)
-    return $ WTMa {lo = Window (fromIntegral w, fromIntegral h - 2) 0,
-        curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
+initWTM :: BManager -> Vty -> WTManager
+initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
+                        ,curwdw = [0]
+                        ,wtmH = 0
+                        ,wtmW = 0
+                        ,bm = ref
+                        ,vty = vty
+                        }
 
 --Data representing current tiling. example:
 --
@@ -135,6 +138,7 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                              _ -> do update (vty wtm) (pic_for_image $ armarCommand (comm cl) (fromIntegral w) (fromIntegral h) wtm)
                                      getCommand' cl wtm w h
 
+--Function that adds a character to the command line at the current position (cursor)
 addCharComm :: CommandLine -> Char -> CommandLine
 addCharComm cl c = let (a,b) = splitAt (pos cl + 1) (comm cl)
                        i = pos cl
@@ -212,5 +216,3 @@ splitLoX param l [x] |param = case l of
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
 --Hacer split V
-
--- vi: et sw=4
