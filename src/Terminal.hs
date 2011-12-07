@@ -1,7 +1,7 @@
 
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
-module Main where
+module Terminal(WTManager,initWTM,showWTM,getKey,getCommand) where
 import BufferManager(BManager,BM,initBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
@@ -91,37 +91,48 @@ resizeLo w h lo = case lo of
         funcV w h lst = let (d,m) = divMod h (length lst) in map (\(l,lst) -> (resizeLo w (d+1) l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo w d l,d)) (drop m lst)
         funcH w h lst = let (d,m) = divMod w (length lst) in map (\(l,lst) -> (resizeLo (d+1) h l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo d h l,d)) (drop m lst)
 
-main :: IO ()
-main = mkVty >>= \vty -> 
-        let wtm = initWTM initBM vty in
-        next_event vty >>= \k -> 
-        display_bounds ( terminal vty ) >>= \(DisplayRegion w h) ->
-        printloop vty wtm w h >>
-        shutdown vty
+getH :: DisplayRegion -> Word
+getH (DisplayRegion w h) = h
+
+getW :: DisplayRegion -> Word
+getW (DisplayRegion w h) = w
+
+showWTM :: WTManager -> IO ()
+showWTM wtm = let vty' = (vty wtm) in
+              do bnds <- display_bounds (terminal vty')
+                 printloop vty' wtm (getW bnds) (getH bnds)
 
 getKey :: WTManager -> IO Event
 getKey wtm = next_event (vty wtm)
 
-getCommand :: String -> WTManager -> Word -> Word -> IO ()
-getCommand s wtm w h= do nEv <- next_event (vty wtm)
-                         case nEv of
-                           EvKey (KASCII c) _ -> let newS = s ++ [c] 
-                                                 in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
-                                                       getCommand newS wtm w h
-                           EvKey (KEnter) _ -> update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
-                           EvResize nx ny -> printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
-                           _ -> update (vty wtm) (pic_for_image $ armarCommand s (fromIntegral w) (fromIntegral h) wtm)
+getCommand :: WTManager -> IO (Maybe String)
+getCommand wtm = let vty' = (vty wtm) in
+                 do bnds <- display_bounds (terminal vty')
+                    getCommand' ":" wtm (getW bnds) (getW bnds)
+
+getCommand' :: String -> WTManager -> Word -> Word -> IO (Maybe String)
+getCommand' s wtm w h= do nEv <- next_event (vty wtm)
+                          case nEv of
+                            EvKey (KASCII c) _ -> let newS = s ++ [c] 
+                                                  in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
+                                                        getCommand' newS wtm w h
+                            EvKey (KEnter) _ -> do update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
+                                                   return (Just s)
+                            EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
+                                                 getCommand' s wtm w h
+                            _ -> do update (vty wtm) (pic_for_image $ armarCommand s (fromIntegral w) (fromIntegral h) wtm)
+                                    getCommand' s wtm w h
                       
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
 printloop vty wtm w h= do
                     update vty (pic_for_image $ armarIm (fromIntegral w) (fromIntegral h) wtm)
-                    nextEV <- next_event vty
-                    case nextEV of 
+{-                    nextEV <- next_event vty
+                     case nextEV of 
                         EvKey (KASCII 'q') [] -> return ()
-                        EvKey (KASCII ':') _ -> getCommand ":" wtm w h
+                        EvKey (KASCII ':') _ -> getCommand ":" wtm w h 
                         EvResize nx ny -> printloop vty (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny)
                         _ -> printloop vty wtm w h
-
+-}
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                          else (printWTM wtm) <-> string def_attr s
                        
@@ -175,24 +186,24 @@ asBuf :: Int -> [Int] -> Layout -> Layout
 asBuf bId (w:ws) lo = case lo of
                         (Window (x,y) z) -> Window (x,y) bId
                         (NoWin (x,y)) -> Window (x,y) bId
-                        (Vspan w h lst) -> Vspan w h (take (w-1) lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop w lst)
-                        (Hspan w h lst) -> Hspan w h (take (w-1) lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop w lst)
+                        (Vspan w h lst) -> Vspan w h (take w lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop (w+1) lst)
+                        (Hspan w h lst) -> Hspan w h (take w lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop (w+1) lst)
 --Hacer split Horizontal con param = True, vertical con param = False
 splitX :: Bool -> WTManager -> WTManager
 splitX param wtm = wtm{ lo = splitLoX param (lo wtm) cw, curwdw = (\xs -> init xs ++ (map (+1) [last xs])) cw } where cw = curwdw wtm
 splitLoX :: Bool -> Layout -> [Int] -> Layout
 splitLoX param l (x: xs@(y':ys)) = case l of
-                (Vspan w h lst) -> Vspan w h ((take (x-1)) lst ++ [(\(lay,height) -> (splitLoX param lay xs,height)) (lst!!x)] ++ drop x lst)
-                (Hspan w h lst) -> Hspan w h ((take (x-1)) lst ++ [(\(lay,width) -> (splitLoX param lay xs,width)) (lst!!x)] ++ drop x lst)
+                (Vspan w h lst) -> Vspan w h ((take x) lst ++ [(\(lay,height) -> (splitLoX param lay xs,height)) (lst!!x)] ++ drop (x+1) lst)
+                (Hspan w h lst) -> Hspan w h ((take x) lst ++ [(\(lay,width) -> (splitLoX param lay xs,width)) (lst!!x)] ++ drop (x+1) lst)
                 (Window (x,y) z) -> Window (x,y) z
                 (NoWin (x,y)) ->  NoWin (x,y)
 splitLoX param l [x] |param = case l of
-                                (Vspan w h lst) -> Vspan w h (take (x-1) lst ++ [(splitSpan param (lst!!x) w)] ++ (drop x lst))
+                                (Vspan w h lst) -> Vspan w h (take x lst ++ [(splitSpan param (lst!!x) w)] ++ (drop (x+1) lst))
                                 (Hspan w h lst) -> Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(NoWin (0,0),0)] ++  drop x lst))
                                 (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,1),(NoWin (0,0),0)]
                      |not param = case l of
                                 (Vspan w h lst) -> Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(NoWin (0,0),0)] ++ drop x lst))
-                                (Hspan w h lst) -> Hspan w h (take (x-1) lst ++ [(splitSpan param (lst!!x) h)] ++ (drop x lst))
+                                (Hspan w h lst) -> Hspan w h (take x lst ++ [(splitSpan param (lst!!x) h)] ++ (drop (x+1) lst))
                                 (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,1),(NoWin (0,0),0)] 
                                 (NoWin (w,h)) -> resizeLo w h $ Vspan w h [(NoWin (w,h),1),(NoWin (w,h),1)]
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
