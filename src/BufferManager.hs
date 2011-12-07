@@ -1,4 +1,4 @@
-module BufferManager(newBM,newBuffer,getLineBM,setLineBM,getBuffSizeBM,setYposBM) where
+module BufferManager(BManager,newBM,newBuffer,getLineBM,setLineBM,getBuffSizeBM,setYposBM) where
 import qualified Buffer as B
 import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty)
 import Data.Maybe(fromJust)
