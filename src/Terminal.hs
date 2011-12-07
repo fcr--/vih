@@ -30,7 +30,8 @@ initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
     (DisplayRegion w h) <- display_bounds (terminal v)
-    return $ WTMa {lo = Window (w,h-2) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
+    return $ WTMa {lo = Window (fromIntegral w, fromIntegral h - 2) 0,
+        curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
 
 --Data representing current tiling. example:
 --
