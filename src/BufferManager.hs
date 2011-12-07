@@ -73,7 +73,7 @@ setYposBM bm bn line = case lookup bn mp of
 
 getYposBM :: BManager -> Int -> Int
 getYposBM bm bn = case lookup bn (buffers bm) of
-			Just buff -> getY buff
+			Just buff -> Buffer.getY buff
 			_ -> undefined -- TODO ..good luck
  
 getYsizeBM :: BManager -> Int -> Int
