@@ -1,4 +1,4 @@
-module TestTerminal where
+module Main where
 
 import Terminal
 import Data.Maybe
