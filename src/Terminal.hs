@@ -23,9 +23,6 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,vty :: Vty
                       }
 
---Data type that wraps the command line attributes
-data CommandLine = CM {comm :: String, pos :: Int}
-
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
@@ -37,6 +34,9 @@ initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(W
                         ,bm = ref
                         ,vty = vty
                         }
+
+--Data type that wraps the command line attributes
+data CommandLine = CM {comm :: String, pos :: Int}
 
 --Data representing current tiling. example:
 --
@@ -115,15 +115,15 @@ getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (Maybe String)
 getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                            case nEv of
                              EvKey (KASCII c) _ -> let newCL = addCharComm cl c
-                                                   in do update (vty wtm) (pic_for_image $ armarCommand (comm newCL) (fromIntegral w) (fromIntegral h) wtm)
+                                                   in do updateVtyCommand wtm (comm newCL) w h
                                                          getCommand' newCL wtm w h
-                             EvKey (KEnter) _ -> do update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
+                             EvKey (KEnter) _ -> do updateVtyCommand wtm "Ejecutando" w h
                                                     return (Just $ comm cl)
                              EvKey (KBS) _ -> let newCL = suprComm cl
-                                              in do update (vty wtm) (pic_for_image $ armarCommand (comm newCL) (fromIntegral w) (fromIntegral h) wtm)
+                                              in do updateVtyCommand wtm (comm newCL) w h
                                                     getCommand' newCL wtm w h
                              EvKey (KDel) _ -> let newCL = delComm cl
-                                               in do update (vty wtm) (pic_for_image $ armarCommand (comm newCL) (fromIntegral w) (fromIntegral h) wtm)
+                                               in do updateVtyCommand wtm (comm newCL) w h
                                                      getCommand' newCL wtm w h
                              EvKey (KLeft) _ -> let cur = pos cl
                                                 in if cur == 0
@@ -137,8 +137,12 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                   return Nothing
                              EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
                                                   getCommand' cl wtm w h
-                             _ -> do update (vty wtm) (pic_for_image $ armarCommand (comm cl) (fromIntegral w) (fromIntegral h) wtm)
+                             _ -> do updateVtyCommand wtm (comm cl) w h
                                      getCommand' cl wtm w h
+
+--Function that updates the Vty on screen with the given String placed on the command line
+updateVtyCommand :: WTManager -> String -> Word -> Word -> IO ()
+updateVtyCommand wtm comm w h = update (vty wtm) (pic_for_image $ armarCommand comm (fromIntegral w) (fromIntegral h) wtm)
 
 --Function that adds a character to the command line at the current position (Cursor)
 addCharComm :: CommandLine -> Char -> CommandLine
