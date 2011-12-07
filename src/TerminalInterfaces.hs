@@ -1,3 +1,5 @@
+module TerminalInterfaces where
+
 import Terminal
 import Control.Monad.Reader
 import BufferManager
