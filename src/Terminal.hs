@@ -26,14 +26,13 @@ data WTManager = WTMa {lo :: Layout -- current layout
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
-initWTM :: BManager -> Vty -> WTManager
-initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
-                        ,curwdw = [0]
-                        ,wtmH = 0
-                        ,wtmW = 0
-                        ,bm = ref
-                        ,vty = vty
-                        }
+initWTM :: IO WTManager
+initWTM = do
+    v <- mkVty
+    (DisplayRegion w h) <- display_bounds (terminal v)
+    return $ WTMa {lo = Window (fromIntegral w, fromIntegral h - 2) 0,
+        curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
+
 
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
