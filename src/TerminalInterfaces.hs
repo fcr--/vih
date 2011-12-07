@@ -2,11 +2,11 @@ import Terminal.hs
 
 -- Operaciones para navegar el archivo actual
 --
-
+{-
 --Getter y setter de posiciones en el buffer (de linea)
 getBuffPos :: WTManager -> Int
 setBuffPos :: WTManager -> Int -> IO WTManager
-
+-}
 --Getter de tamanio de buffer
 getBuffSize :: WTManager -> Int
 
@@ -33,3 +33,32 @@ winUp,winDown :: WTManager -> IO WTManager
 openFile :: WTManager -> IO WTManager
 writeFile :: WTManager -> Maybe String -> IO WTManager
 --Interfaces file for WTManager (Terminal.hs)
+
+getBuffSize wtm = runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
+    where nav (x:xs) lay = 
+            case lay of
+                (Hspan w h lst) -> nav xs (lst!!x)
+                (Vspan w h lst) -> nav xs (lst!!x)
+                (Window (x,y) z) -> ask >>= \bm -> return $ getBuffSizeBM z bm
+                _ -> undefined
+
+getLine wtm lnum 
+{-
+getBuffPos wtm = nav (curwdw wtm) (lo wtm)
+    where nav (x:xs) lay =
+            case lay of
+                (Hspan x y lst) = nav xs (lst!!x)
+                (Vspan x y lst) = nav xs (lst!!x)
+                (Window (x,y) z) = z
+          nav sth lay = undefined
+setBuffPos wtm npos = do
+                 things <- wtm{lo = navIO (curwdw wtm) (lo wtm)}
+                 (DisplayRegion w h) <- (terminal.vty wtm)
+                 printTerm things --a implementar en Terminal.hs
+                 return things
+    where navIO (x:xs) lay =
+            case lay of
+                (Hspan x y lst) = Hspan x y (take (x-1) lay ++ [(\(lout,s) -> (navIO xs lout,s))] ++ drop x lay)
+                (Vspan x y lst) = Vspan x y (take (x-1) lay ++ [(\(lout,s) -> (navIO xs lout,s))] ++ drop x lay)
+                (Window (x,y) z) = Window (x,y) z
+                xs = xs -}
