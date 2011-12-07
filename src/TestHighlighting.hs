@@ -6,8 +6,7 @@ import Data.Maybe (fromJust)
 import qualified System.IO as S (readFile)
 import qualified Data.Map as M
 
--- TODO : Testing
-
+-- TODO : \" should not be considered for strings.
 
 haskell = parseGrammar $ unlines [
   "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / . )*;",
@@ -16,14 +15,14 @@ haskell = parseGrammar $ unlines [
 
   "multicomment = \"{-\" (\"--\" / multicomment / !(\"-}\").)* \"-}\" ? ;",
 
-  "string =  '\"' (!'\"'.)* '\"';",
+  "string =   '\"' (!'\"'.)* '\"';",
 
   "reserved  = '=' / '|' / \"..\" / \"::\" / '@' /  '~' / \"->\" / \"<-\" /  words;",
 
   "words = \"case\" / \"class\" / \"data\" / \"default\" / \"deriving\" / \"do\"",
   "      / \"mdo\" / \"else\" / \"forall\" / \"foreign\" / \"hiding\" / \"if\"",
-  "      / \"import\" / \"in\" / \"infix\" / \"infixl\" / \"infixr\"",
-  "      / \"instance\" / \"let\" / \"module\" / \"newtype\" / \"of\"",
+  "      / \"import\" / \"instance\" / \"infixl\" / \"infixr\" / \"infix\"",
+  "      / \"in\" / \"let\" / \"module\" / \"newtype\" / \"of\"",
   "      / \"qualified\" / \"then\" / \"where\" / \"type\" ;",
 
   "Cons = alphamay (alphamin / alphamay / num / \"'\"  / '_' / '#' / '.') *;",
@@ -43,7 +42,7 @@ color = with_fore_color def
 
 bold' = flip with_style $ bold 
 
--- type -> Color, TODO : colors
+-- type -> Color
 colors :: M.Map String (Char -> Image)
 colors = M.fromList 	[   
 				("comment", char $ color blue),
