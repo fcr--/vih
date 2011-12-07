@@ -119,10 +119,12 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                          getCommand' newCL wtm w h
                              EvKey (KEnter) _ -> do update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
                                                     return (Just $ comm cl)
-                             EvKey (KBS) _ -> let newS = init $ comm cl
-                                                  newP = pos cl -1
-                                              in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
-                                                    getCommand' (cl {comm = newS, pos = newP }) wtm w h
+                             EvKey (KBS) _ -> let newCL = suprComm cl
+                                              in do update (vty wtm) (pic_for_image $ armarCommand (comm newCL) (fromIntegral w) (fromIntegral h) wtm)
+                                                    getCommand' newCL wtm w h
+                             EvKey (KDel) _ -> let newCL = delComm cl
+                                               in do update (vty wtm) (pic_for_image $ armarCommand (comm newCL) (fromIntegral w) (fromIntegral h) wtm)
+                                                     getCommand' newCL wtm w h
                              EvKey (KLeft) _ -> let cur = pos cl
                                                 in if cur == 0
                                                    then getCommand' cl wtm w h
@@ -138,11 +140,22 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                              _ -> do update (vty wtm) (pic_for_image $ armarCommand (comm cl) (fromIntegral w) (fromIntegral h) wtm)
                                      getCommand' cl wtm w h
 
---Function that adds a character to the command line at the current position (cursor)
+--Function that adds a character to the command line at the current position (Cursor)
 addCharComm :: CommandLine -> Char -> CommandLine
-addCharComm cl c = let (a,b) = splitAt (pos cl + 1) (comm cl)
+addCharComm cl c = let (a,b) = splitAt (pos cl) (comm cl)
                        i = pos cl
                    in cl {comm = a++[c]++b, pos = i+1}
+
+--Function that suprimes a character at the current position in the command line (Backward delete)
+suprComm :: CommandLine -> CommandLine
+suprComm cl = let (a,b) = splitAt (pos cl) (comm cl)
+                  i = pos cl
+              in cl {comm = (init a)++b, pos = i -1}
+
+--Function that deletes a charcter at the current position in the command line (Forward delete)
+delComm :: CommandLine -> CommandLine
+delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
+             in cl {comm = a++(tail b)}
                       
 --Function that given a vty prints it on the screen
 printloop :: Vty -> WTManager -> Word -> Word -> IO ()
