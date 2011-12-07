@@ -8,12 +8,13 @@ module PSvi (main,psParse,
     where
 
 import Terminal
-import TerminalInterfaces
+import TerminalInterfaces as TI
 import Peg.Peg
 import Data.Char
+import Data.Maybe(isNothing, fromJust)
 import Control.Applicative
 import Control.Concurrent.STM
-import System.IO
+import System.IO as SIO
 import System(getArgs)
 import System.Directory(getAppUserDataDirectory)
 import System.FilePath(joinPath)
@@ -207,7 +208,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("currentdict", psOpCurrentdict),
         ("type", psOpType),
         -- terminal:
-        ("initwtm", psOpInitwtm),   ("getbuffsize", psOpGetbuffsize),
+        ("initwtm", psOpInitwtm),   --("getbuffsize", psOpGetbuffsize),
         ("getline", psOpGetline),   ("setline", psOpSetline),
         ("getxpos", psOpGetxpos),   ("getypos", psOpGetypos),
         ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
@@ -257,7 +258,7 @@ psExec st obj = psInterp st obj
 psExecFile :: PSState -> FilePath -> IO (Either String PSState)
 
 psExecFile st filename = do
-    text <- catch (readFile filename) (const "")
+    text <- catch (readFile filename) (const $ return "")
     case psParse text of
         Left msg -> error text
         Right obj -> psExec st obj
@@ -270,6 +271,11 @@ ensureNArgs name n st action
     where
     msg = if n > 1 then ": at least " ++ show n ++ " elements on the stack required"
                    else ": empty stack"
+
+ensureWTM :: String -> PSState -> IO (Either String PSState) -> IO (Either String PSState)
+ensureWTM name st action = case wtm st of
+    Nothing -> return $ Left ("psInterp error: " ++ name ++ ": initwtm not called")
+    _ -> action
 
 ------ POSTSCRIPT STACK OPERATORS ------
 
@@ -408,8 +414,8 @@ psOpFor st = ensureNArgs "for" 3 st $ case stack st of
 psOpForall :: PSState -> IO (Either String PSState)
 psOpForall st = ensureNArgs "forall" 2 st $ case stack st of
     (proc@(PSList _):PSList list:ss) -> forall' proc [ [o] | o <- list ]
-    (proc@(PSList _):PSString str:ss) -> forall' proc [ [PSString c] | c <- str]
-    (proc@(PSList _):PSMap dict):ss) -> forall' proc [ [k, v] | (k,v) <- M.toList dict ]
+    (proc@(PSList _):PSString str:ss) -> forall' proc [ [PSString [c]] | c <- str]
+    (proc@(PSList _):PSMap dict:ss) -> forall' proc [ [k, v] | (k,v) <- M.toList dict ]
     _ ->return $ Left "psInterp error: forall: top two elements must have dict/string/list and code(list) type (code(list) on top)"
     where
     forall :: PSState -> PSObject -> [[PSObject]] -> IO (Either String PSState)
@@ -457,7 +463,7 @@ psOpExec st = ensureNArgs "exec" 1 st $ case stack st of
 
 psOpTry :: PSState -> IO (Either String PSState)
 psOpTry st = ensureNArgs "try" 1 st $ case stack st of
-    (PSList o:ss) -> psExec st {stack = ss} o >>= \res -> case res of
+    (o@(PSList _):ss) -> psExec st {stack = ss} o >>= \res -> case res of
         Right st' -> return $ Right st' {stack = PSString "" : stack st'}
         Left msg -> return $ Right st {stack = PSString msg : ss}
     _ -> return $ Left "psInterp error: try: not a code (list) on top of the stack"
@@ -513,7 +519,7 @@ psOpGet st = ensureNArgs "get" 2 st $ case stack st of
         then Right st {stack = (dict M.! key) : ss}
         else Left "psInterp error: get: key not in dictionary"
     (PSInt idx : PSString str : ss) -> return $ if idx >= 0 && idx < length str
-        then Right st {stack = PSString (str !! idx) : ss}
+        then Right st {stack = PSString [str !! idx] : ss}
         else Left "psInterp error: get: index out of bounds"
     (PSInt idx : PSList list : ss) -> return $ if idx >= 0 && idx < length list
         then Right st {stack = (list !! idx) : ss}
@@ -619,85 +625,87 @@ psOpType st = ensureNArgs "type" 1 st $ case stack st of
     (PSMap _ : ss) -> return $ Right st {stack = PSString "map" : ss}
     (PSList _ : ss) -> return $ Right st {stack = PSString "list" : ss}
     (PSInternalOp _ _: ss) -> return $ Right st {stack = PSString "internal" : ss}
-    (PSMark _ : ss) -> return $ Right st {stack = PSString "mark" : ss}
+    (PSMark : ss) -> return $ Right st {stack = PSString "mark" : ss}
 
 ------ BUFFER MANAGER WRAPPER ------
 
 psOpInitwtm :: PSState -> IO (Either String PSState)
 psOpInitwtm st = case wtm st of
-    Nothing -> initWTM >> Return $ Right st
+    Nothing -> initWTM >>= \w -> return $ Right st {wtm = Just w}
     Just wtm -> return $ Right st
 
+{-
 psOpGetbuffsize :: PSState -> IO (Either String PSState)
-psOpGetbuffsize st = return $ Right st {stack = PSInt (getBufSize (wtm st)) : stack st}
+psOpGetbuffsize st = return $ Right st {stack = PSInt (getBuffSize (wtm st)) : stack st}
+-}
 
 psOpGetline :: PSState -> IO (Either String PSState)
-psOpGetline st = ensureNArgs "getline" 1 st $ case stack st of
-    (PSInt line : ss) -> return $ Right st {stack = PSString (getLine (wtm st) line) : ss}
+psOpGetline st = ensureWTM "getline" st $ ensureNArgs "getline" 1 st $ case stack st of
+    (PSInt line : ss) -> return $ Right st {stack = PSString (TI.getLine (fromJust (wtm st)) line) : ss}
     _ ->return $ Left "psInterp error: getline: not an int on top of the stack"
 
 psOpSetline :: PSState -> IO (Either String PSState)
-psOpSetline st = ensureNArgs "setline" 2 st $ case stack st of
+psOpSetline st = ensureWTM "setline" st $ ensureNArgs "setline" 2 st $ case stack st of
     (PSString txt : PSInt num : ss) -> do
-        wtm' <- setline (wtm st) num txt
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- TI.setLine (fromJust (wtm st)) num txt
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: setline: not an int, string on top of the stack (string topmost)"
 
 psOpGetxpos :: PSState -> IO (Either String PSState)
-psOpGetxpos st = return $ Right st {stack = PSInt (getXpos (wtm st)) : stack st}
+psOpGetxpos st = ensureWTM "getxpos" st $ return $ Right st {stack = PSInt (getXpos$fromJust$wtm st) : stack st}
 
 psOpGetypos :: PSState -> IO (Either String PSState)
-psOpGetypos st = return $ Right st {stack = PSInt (getYpos (wtm st)) : stack st}
+psOpGetypos st = ensureWTM "getypos" st $ return $ Right st {stack = PSInt (getYpos$fromJust$wtm st) : stack st}
 
 psOpSetxpos :: PSState -> IO (Either String PSState)
 psOpSetxpos st = ensureNArgs "setxpos" 1 st $ case stack st of
     (PSInt pos : ss) -> do
-        wtm' <- setXpos (wtm st) pos
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- setXpos (fromJust (wtm st)) pos
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: setxpos: not an int on top of the stack"
 
 psOpSetypos :: PSState -> IO (Either String PSState)
 psOpSetypos st = ensureNArgs "setypos" 1 st $ case stack st of
     (PSInt pos : ss) -> do
-        wtm' <- setYpos (wtm st) pos
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- setYpos (fromJust (wtm st)) pos
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: setypos: not an int on top of the stack"
 
 psOpGetxsize :: PSState -> IO (Either String PSState)
-psOpGetxsize st = return $ Right st {stack = PSInt (getXsize (wtm st)) : stack st}
+psOpGetxsize st = ensureWTM "getxsize" st $ return $ Right st {stack = PSInt (getXsize$fromJust$wtm st) : stack st}
 
 psOpGetysize :: PSState -> IO (Either String PSState)
-psOpGetysize st = return $ Right st {stack = PSInt (getYsize (wtm st)) : stack st}
+psOpGetysize st = ensureWTM "getysize" st $ return $ Right st {stack = PSInt (getYsize$fromJust$wtm st) : stack st}
 
 psOpWinup :: PSState -> IO (Either String PSState)
-psOpWinup st = winUp (wtm st) >>= \w -> return $ Right st {wtm = w}
+psOpWinup st = ensureWTM "winup" st $ winUp (fromJust $ wtm st) >>= \w -> return $ Right st {wtm = Just w}
 
 psOpWindown :: PSState -> IO (Either String PSState)
-psOpWindown st = winDown (wtm st) >>= \w -> return $ Right st {wtm = w}
+psOpWindown st = ensureWTM "windown" st $ winDown (fromJust $ wtm st) >>= \w -> return $ Right st {wtm = Just w}
 
 -- 'o' True, 'O' False.
 psOpOpenline :: PSState -> IO (Either String PSState)
 psOpOpenline st = ensureNArgs "openline" 1 st $ case stack st of
     (PSInt after : ss) -> do
-        wtm' <- openLine (after /= 0) (wtm st)
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- openLine (after /= 0) (fromJust $ wtm st)
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openline: not an int on top of the stack"
 
 psOpOpenfile :: PSState -> IO (Either String PSState)
 psOpOpenfile st = ensureNArgs "openfile" 1 st $ case stack st of
     (PSString filename : ss) -> do
-        wtm' <- openFile (wtm st) filename
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- TI.openFile (fromJust $ wtm st) filename
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openfile: not a string on top of the stack"
 
 psOpWritefile :: PSState -> IO (Either String PSState)
 psOpWritefile st = ensureNArgs "writefile" 1 st $ case stack st of
     (PSList [PSString filename] : ss) -> do
-        wtm' <- writeFile (wtm st) (Just filename)
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- TI.writeFile (fromJust $ wtm st) (Just filename)
+        return $ Right st {stack = ss, wtm = Just wtm'}
     (PSList [] : ss) -> do
-        wtm' <- writeFile (wtm st) Nothing
-        return $ Right st {stack = ss, wtm = wtm'}
+        wtm' <- TI.writeFile (fromJust $ wtm st) Nothing
+        return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openfile: an empty list or a list with the filename must be on top of the stack"
 
 ------ MAIN LOOP ------
@@ -709,11 +717,11 @@ main = do
 
     -- on posix (unix/linux/mac): $HOME/.appName
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
-    home <- getAppUserDataDirectory
+    home <- getAppUserDataDirectory "vih"
 
     psExecFile st "init.ps"
     psExecFile st "/etc/init.ps"
-    psExecFile st [joinPath home "init.ps"]
+    psExecFile st $ joinPath [home, "init.ps"]
     psExecFile st "run.ps"
     psExecFile st "/etc/run.ps"
     terminal st
@@ -722,7 +730,7 @@ terminal :: PSState -> IO a
 terminal s = do
         putStr ((show $ length $ stack s) ++ "> ")
         hFlush stdout
-        line <- getLine
+        line <- SIO.getLine
         case psParse line of
             Left m -> putStrLn m >> terminal s
             Right c -> psExec s c >>= \r -> case r of
