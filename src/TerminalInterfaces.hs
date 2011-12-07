@@ -83,8 +83,7 @@ wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
                         (Window (x,y) z) -> ask >>= \a -> return (f a z x y)
 winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
-openLine wtm updown = return ( fst $ loOp openLineBM id wtm )
-openLine wtm updown = return ((\(wtman,nbm) -> wtman{bm = nbm updown}) $ loOp openLineBM id wtm) >>= \cosa -> showWTM cosa >> return cosa
+openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>= \cosa -> showWTM cosa >> return cosa) updown
 openFile = undefined
 writeFile = undefined
 

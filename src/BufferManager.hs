@@ -78,8 +78,8 @@ getYsizeBM :: BManager -> Int -> Int
 getYsizeBM bm bn	=	case lookup bn (buffers bm) of
 					Just buff -> Buffer.getSize buff
 					Nothing -> undefined  -- TODO ..good luck
-getXsizeBM :: BManager -> Int -> Int -> Int
-getXsizeBM bm bn bl =	case lookup bn (buffers bm) of
+getXsizeBM :: BManager -> Int -> Int
+getXsizeBM bm bn =	case lookup bn (buffers bm) of
 				Just buff -> length $ Buffer.getLine buff
 -- settes and getters of cursors
 
