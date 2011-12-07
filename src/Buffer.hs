@@ -1,20 +1,24 @@
 module Buffer where
-import Peg.PegParser
+import Peg.PegParser hiding (char)
+import Peg.Peg 
 import Graphics.Vty
 import Debug.Trace -- para jorobar
 import qualified TestHighlighting as TestHighlighting (highlight)
 import qualified Data.Map as M
 import qualified System.IO as S (readFile,writeFile)
+import System.Directory(getAppUserDataDirectory)
+import System.FilePath(joinPath)
+import qualified ReadHighlighting as RH
+import Data.Monoid
 
 data Buffer = Buffer {
 	contents :: ([BufferLine], BufferLine, [BufferLine]),
 	curLine  :: Int,
 	curPos	 :: Int, -- position of the cursor within the line curLine
 	numLines :: Int,
--- TODO : right now these are not being used.
 	grammar  :: Defs,
-	colors   :: M.Map String (Char -> Image) 
-	} -- TODO: atributos de los no-terminales
+	colors   :: M.Map String RH.Attr
+	} 
 
 -- highlighting with memoization
 data BufferLine = BufferLine	{  line :: String , memo :: [Image] } 
@@ -32,29 +36,42 @@ instance Show BufferLine where
 		where
 			s = line buff
 
-
 ------ Buffer functions ------
 
 readFile :: FilePath -> IO Buffer
-readFile fn = fmap (load . noNull . lines) $ S.readFile fn
+readFile fn = do
+		(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) ) 
+		file <- catch (S.readFile fn) (const $ return "")
+		let buff = (load . noNull . lines) file
+		let b1 = buff { grammar = df, colors = mp }
+		let (p,c,s) = contents b1
+		return $ buff {contents = (map (func b1) p, (func b1) c, map (func b1) s) } -- colors! ;D
   where
+  func b1 = (\(BufferLine s _) -> loadLine b1 s)
   noNull ls = if null ls then [""] else ls
+  ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, curPos = 0, numLines = length lines, grammar = M.empty, colors = M.empty }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty }
     where
-    lines = map loadLine ls
+    lines = map (\s -> BufferLine s []) ls -- no colors yet, wait for the file extension
+
+emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are always default
 
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = Buffer { contents = ([], loadLine [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = M.empty, colors = M.empty}
+newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty} in ans
 
 -- writeFile :: FilePath -> IO Buffer
-writeFile :: FilePath -> Buffer -> IO ()
-writeFile fp buf = S.writeFile fp (txt buf)
+writeFile :: FilePath -> Buffer -> IO Buffer
+writeFile fp buf = do
+			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
+			catch (S.writeFile fp (txt buf)) (const $ return ()) 
+			return $ buf { grammar = df, colors = mp}
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
+       ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fp
 
 firstLine :: Buffer -> Buffer
 firstLine buff
@@ -86,7 +103,7 @@ lineDown buff
 
 -- dd
 deleteLine :: Buffer -> Buffer
-deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine "",[]) }
+deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine buff "",[]) }
 				|	null sig	=	buff { contents = ( tail pr, head pr, sig), curLine = (cl-1), numLines =  (nl-1)}
 				|	otherwise	=	buff { contents =  ( pr, head sig, tail sig), curLine =  cl, numLines =  (nl-1)}
 	where
@@ -99,16 +116,17 @@ openLine :: Buffer -> Bool -> Buffer
 openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) }
 			|	otherwise	=	buff { contents = oF (contents buff), numLines = (numLines buff + 1) }
 	where
-		oT	=	\(prev, l, sig) -> ( l : prev, loadLine "", sig)
-		oF	=	\(prev, l, sig) -> ( prev , loadLine "", l : sig)
+		oT	=	\(prev, l, sig) -> ( l : prev, loadLine buff "", sig)
+		oF	=	\(prev, l, sig) -> ( prev , loadLine buff "", l : sig)
 
 -- equivalent to pressing J in normal mode of vim.
 joinLine :: Buffer -> Buffer
+joinLine buff | trace (show $ numLines buff) False = undefined
 joinLine buff	=	doIt (contents buff)
 	where
 		doIt	= \(prev, l@(BufferLine ls _), sig) -> case sig of
 --						Non-empty line, add a space in the middle
-						(BufferLine s@(_:_) _):ss -> buff { contents = (prev, loadLine (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
+						(BufferLine s@(_:_) _):ss -> buff { contents = (prev, loadLine buff (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
 --						Empty line, consume line
 						(_:ss) -> buff { contents = (prev, l, ss) , numLines = (numLines buff - 1) }
 --						No next line... nothing
@@ -117,10 +135,13 @@ joinLine buff	=	doIt (contents buff)
 ------ BufferLine functions ------
 
 
--- TODO : HIGHLIGHTING WITH ITS OWN GRAMMAR
+-- TODO : Check RIGHT's
 -- does the highlighting of the new line
-loadLine :: String -> BufferLine
-loadLine s = BufferLine s $ (\(Right x) -> x) $ (TestHighlighting.highlight s) -- []
+--loadLine :: String -> BufferLine
+--loadLine s = BufferLine s $ (\(Right x) -> x) $ (TestHighlighting.highlight s) -- []
+
+loadLine :: Buffer -> String -> BufferLine
+loadLine buff s = BufferLine s  $ highlight' buff s
 
 unLoadLine :: BufferLine -> String
 unLoadLine bl = line bl
@@ -132,6 +153,12 @@ highlight :: Buffer -> ([[Image]],[Image],[[Image]])
 -- we are not re-computing the highlighting here, just extracting the memoized value.
 highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 
+highlight' :: Buffer -> String -> [Image]
+highlight' buff s	=	map f $ (\(Right x) -> x) $ pegMatch (gram M.! "all") s
+	where
+		gram = grammar buff
+		col = colors buff
+		f (c,xs) = (char $ RH.attr2VtyAttr $ mconcat $ map (\x -> M.findWithDefault mempty x col) xs ) c
 
 ------ Various functions ------
 
@@ -145,7 +172,7 @@ getLine buff = let (p,c,n) = contents buff in unLoadLine c
 
 -- Set the contents of the current line
 setLine :: String -> Buffer -> Buffer
-setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine cr,s) }
+setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine buff cr,s) }
 
 -- Get the line number of the cursor
 getLineNumber :: Buffer -> Int
@@ -172,25 +199,40 @@ setY y buff	=	find cl (contents buff)
 						|	pos < fy	= find (pos+1) ( c:pr , head sig, tail sig)
  						|	otherwise 	= buff { contents = cont , curLine = fy}
 
+--	Read Grammar
+
+-- Extension -> (Grammar, Attributes for non-terminals)
+-- hs.peg , hs.attr
+-- all <- el "primer" no terminal.
+readGrammar :: String -> IO (Defs,M.Map String RH.Attr)
+readGrammar s  = do
+			home <- getAppUserDataDirectory "vih"  -- = undefined
+			gram <- S.readFile ( joinPath [home ,(s ++ ".peg")] )
+			high <- S.readFile ( joinPath [home ,(s ++ ".attr")] )
+			return ( parseGrammar gram  , (\(Right x) -> x) $ pegMatch RH.reader high) -- TODO hopefully it will always be right!
+
 -- test
 
 main :: IO ()
-main = do
-	vty <- mkVty
-	buffer <- Buffer.readFile "Terminal.hs"
-	let (_,c,sig) = Buffer.highlight buffer
-        update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ take 30 (c:sig)
-	loop buffer vty
-        shutdown vty
+main =	 do
+		vty <- mkVty
+		buffer <- Buffer.readFile "Terminal.hs"
+		let (_,c,sig) = Buffer.highlight buffer
+		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
+		loop buffer vty
+		shutdown vty
+	where
+		sp xs = if null xs then [(char def_attr ' ')] else xs
 
 loop buffer vty = do
 			nextEV <- next_event vty
 			case nextEV of
 				EvKey ( KASCII 'q' ) []  -> return()
-				EvKey ( KASCII 'a' ) []  -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 l1)) ++ [c1] ++ (take 15 r1) ) >> loop bu vty
-				EvKey ( KASCII 'j' ) [] -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 lj)) ++ [cj] ++ (take 15 rj) ) >> loop bj vty
-				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
+				EvKey ( KASCII 'a' ) []  -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l1)) ++ [c1] ++ (take 15 r1) ) >> loop bu vty
+				EvKey ( KASCII 'j' ) [] -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 lj)) ++ [cj] ++ (take 15 rj) ) >> loop bj vty
+				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
 	where
+		sp xs = if null xs then [(char def_attr ' ')] else xs
 		(l,c,r) = Buffer.highlight bd
 		(l1,c1,r1) = Buffer.highlight bu
 		bd = ( lineDown buffer )

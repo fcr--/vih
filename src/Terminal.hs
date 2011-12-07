@@ -30,10 +30,8 @@ initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
     (DisplayRegion w h) <- display_bounds (terminal v)
-    return $ WTMa {lo = Window (fromIntegral w, fromIntegral h - 2) 0,
-        curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
-
-
+    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v} ) >>= \wtm -> return (resizeLayout w h wtm)
+    
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
 
@@ -65,14 +63,13 @@ data Layout = Vspan Int Int [(Layout,Int)] --Vertical span with sizes
              |NoWin{size :: (Int,Int)}
              deriving(Show)
 
---To navigate through the layout
 bgcolor = def_attr `with_fore_color` red
 dum = def_attr `with_style` reverse_video
 cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 
 --Function to resize the current layout to fit the new window size
 resizeLayout::Int->Int->WTManager->WTManager
-resizeLayout h w wtm = wtm{lo = (resizeLo h w) (lo wtm)}
+resizeLayout h w wtm = wtm{lo = (resizeLo (h-2) w) (lo wtm)}
 
 resizeLo :: Int -> Int -> Layout -> Layout
 resizeLo w h lo = case lo of
@@ -183,7 +180,7 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
 
-printWTM wtm = printControl (lo wtm) <-> printLayout (lo wtm)
+printWTM wtm = {-printControl (lo wtm) <-> -} printLayout (lo wtm)
 
 printControl lOut = string def_attr $show lOut
 printLayout lOut = case lOut of
@@ -197,6 +194,14 @@ printLayout lOut = case lOut of
 --Imprimir un buffer en una ventana
 
 --Abrir ventana nueva
+newWin :: Bool {- horizontal? -} -> WTManager -> IO WTManager
+newWin horiz wtm = do
+                (newBM,bnum) <- return $ newBuffer $ bm wtm
+                (DisplayRegion w h) <- display_bounds (terminal v)
+                newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) curwdw wtm}
+                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout w h wtm
+                printWTM lWTM
+                return lWTM
 
 --Asociar buffer a ventana
 assocBuffer :: Int -> [Int] -> WTManager -> WTManager
@@ -217,8 +222,8 @@ splitLoX :: Bool -> Layout -> [Int] -> Layout
 splitLoX param l (x: xs@(y':ys)) = case l of
                 (Vspan w h lst) -> Vspan w h ((take x) lst ++ [(\(lay,height) -> (splitLoX param lay xs,height)) (lst!!x)] ++ drop (x+1) lst)
                 (Hspan w h lst) -> Hspan w h ((take x) lst ++ [(\(lay,width) -> (splitLoX param lay xs,width)) (lst!!x)] ++ drop (x+1) lst)
-                (Window (x,y) z) -> Window (x,y) z
-                (NoWin (x,y)) ->  NoWin (x,y)
+                (Window (x,y) z) -> undefined -- Window (x,y) z
+                (NoWin (x,y)) ->  undefined -- NoWin (x,y)
 splitLoX param l [x] |param = case l of
                                 (Vspan w h lst) -> Vspan w h (take x lst ++ [(splitSpan param (lst!!x) w)] ++ (drop (x+1) lst))
                                 (Hspan w h lst) -> Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(NoWin (0,0),0)] ++  drop x lst))
@@ -230,4 +235,3 @@ splitLoX param l [x] |param = case l of
                                 (NoWin (w,h)) -> resizeLo w h $ Vspan w h [(NoWin (w,h),1),(NoWin (w,h),1)]
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
---Hacer split V
