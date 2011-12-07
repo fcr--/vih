@@ -21,7 +21,7 @@ data BManager = BManager {
 -- Constructor
 
 newBM :: BManager
-newBM = BManager empty 0 empty
+newBM = BManager (singleton 0 Buffer.newBuf) 1 (singleton 0 0) -- empty -- PARA mystery
 
 -- Creates a new buffer, cursor at position (0,0)
 newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
