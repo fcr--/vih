@@ -23,14 +23,6 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,vty :: Vty
                       }
 
-
-newtype WTM a = WTM{runWTM :: WTManager -> (WTManager, a)}
-instance Monad WTM where
- --(>>=) :: WTM a -> (a -> WTM b) -> WTM b
- wtm >>= op = WTM (\wtma -> let (interWTM,a) = runWTM wtm wtma in
-                      runWTM (op a) interWTM)
- return a = WTM (\wtm -> (wtm,a))
- 
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
@@ -43,9 +35,6 @@ initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(W
                         ,vty = vty
                         }
 
-instance MonadState WTManager WTM where
-    get = WTM (\wtma -> (wtma,wtma))
-    put wtm = WTM (\wtma -> (wtm,()))
 --Data representing current tiling. example:
 --
 -- Hspan 14 9 [Vspan 5 5 [Window 3 3 b1,Window 3 2 b2],Window 8 6 b3]
