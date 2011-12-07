@@ -130,15 +130,14 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                    then getCommand' cl wtm w h
                                                    else getCommand' (cl {pos = cur - 1}) wtm w h
                              EvKey (KRight) _ -> let cur = pos cl
-                                                 in if cur == length (comm cl) - 1
+                                                 in if cur == length (comm cl)
                                                     then getCommand' cl wtm w h
                                                     else getCommand' (cl {pos = cur + 1}) wtm w h 
                              EvKey (KEsc) _ -> do printloop (vty wtm) wtm (fromIntegral w) (fromIntegral h)
                                                   return Nothing
                              EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
                                                   getCommand' cl wtm w h
-                             _ -> do updateVtyCommand wtm (comm cl) w h
-                                     getCommand' cl wtm w h
+                             _ -> getCommand' cl wtm w h
 
 --Function that updates the Vty on screen with the given String placed on the command line
 updateVtyCommand :: WTManager -> String -> Word -> Word -> IO ()
