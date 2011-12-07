@@ -18,7 +18,7 @@ data Buffer = Buffer {
 	numLines :: Int,
 	grammar  :: Defs,
 	colors   :: M.Map String RH.Attr
-	} -- TODO: atributos de los no-terminales
+	} 
 
 -- highlighting with memoization
 data BufferLine = BufferLine	{  line :: String , memo :: [Image] } 
@@ -49,7 +49,7 @@ readFile fn = do
   where
   func b1 = (\(BufferLine s _) -> loadLine b1 s)
   noNull ls = if null ls then [""] else ls
-  ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn -- TODO THIS ASSUMES .something
+  ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
 		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty }
@@ -66,8 +66,8 @@ newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, c
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: FilePath -> Buffer -> IO Buffer
 writeFile fp buf = do
-			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) ) -- TODO -> All in black
-			catch (S.writeFile fp (txt buf)) (const $ return ()) -- TODO
+			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
+			catch (S.writeFile fp (txt buf)) (const $ return ()) 
 			return $ buf { grammar = df, colors = mp}
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
@@ -214,13 +214,15 @@ readGrammar s  = do
 -- test
 
 main :: IO ()
-main = do
-	vty <- mkVty
-	buffer <- Buffer.readFile "Terminal.hs"
-	let (_,c,sig) = Buffer.highlight buffer
-        update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ take 30 (c:sig)
-	loop buffer vty
-        shutdown vty
+main =	 do
+		vty <- mkVty
+		buffer <- Buffer.readFile "Terminal.hs"
+		let (_,c,sig) = Buffer.highlight buffer
+		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
+		loop buffer vty
+		shutdown vty
+	where
+		sp xs = if null xs then [(char def_attr ' ')] else xs
 
 loop buffer vty = do
 			nextEV <- next_event vty
@@ -228,7 +230,7 @@ loop buffer vty = do
 				EvKey ( KASCII 'q' ) []  -> return()
 				EvKey ( KASCII 'a' ) []  -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l1)) ++ [c1] ++ (take 15 r1) ) >> loop bu vty
 				EvKey ( KASCII 'j' ) [] -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 lj)) ++ [cj] ++ (take 15 rj) ) >> loop bj vty
-				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
+				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
 		(l,c,r) = Buffer.highlight bd
