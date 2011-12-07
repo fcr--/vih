@@ -9,6 +9,7 @@ import qualified System.IO as S (readFile,writeFile)
 data Buffer = Buffer {
 	contents :: ([BufferLine], BufferLine, [BufferLine]),
 	curLine  :: Int,
+	curPos	 :: Int, -- position of the cursor within the line curLine
 	numLines :: Int,
 -- TODO : right now these are not being used.
 	grammar  :: Defs,
@@ -40,14 +41,14 @@ readFile fn = fmap (load . noNull . lines) $ S.readFile fn
   noNull ls = if null ls then [""] else ls
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, numLines = length lines, grammar = M.empty, colors = M.empty }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = M.empty, colors = M.empty }
     where
     lines = map loadLine ls
 
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = Buffer { contents = ([], loadLine [] ,[]), curLine = 0, numLines = 1, grammar = M.empty, colors = M.empty}
+newBuf = Buffer { contents = ([], loadLine [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = M.empty, colors = M.empty}
 
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: FilePath -> Buffer -> IO ()
@@ -149,6 +150,12 @@ setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine c
 -- Get the line number of the cursor
 getLineNumber :: Buffer -> Int
 getLineNumber buff = curLine buff
+
+getX :: Buffer -> Int
+getX buff = curPos buff
+
+setX :: Int -> Buffer -> Buffer
+setX x buff	=	buff { curPos = x}
 
 -- Respecto al 0
 getY :: Buffer -> Int

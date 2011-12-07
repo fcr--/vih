@@ -7,12 +7,16 @@ module PSvi (main,psParse,
              psExec)
     where
 
-import BufferManager
+import Terminal
+import TerminalInterfaces
 import Peg.Peg
 import Data.Char
 import Control.Applicative
 import Control.Concurrent.STM
 import System.IO
+import System(getArgs)
+import System.Directory(getAppUserDataDirectory)
+import System.FilePath(joinPath)
 import qualified Data.Map as M
 import qualified Data.Bits as B
 import qualified Text.Regex.PCRE.String as PCRE
@@ -150,8 +154,7 @@ data PSState = PSState {
         dictStack :: ![M.Map PSObject PSObject],
         stack     :: ![PSObject],
         retState  :: !PSRetState,
-        bufferManager :: TVar BManager,
-        currentBM :: BManager}
+        wtm :: Maybe WTManager}
 
 instance Show PSState where
     show st = "globDict=" ++ show (globDict st) ++
@@ -170,10 +173,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         dictStack = [],
         stack = [],
         retState = PSRetOK,
-        bufferManager = v,
-        currentBM = bm}
+        wtm = Nothing}
     where
-    bm = initBM
     globals = map (\(k,v) -> (PSName False k, PSInternalOp k v)) [
         -- stack:
         ("copy", psOpCopy), ("count", psOpCount), ("dup", psOpDup),
@@ -201,6 +202,14 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("begin", psOpBegin),   ("end", psOpEnd),
         ("head", psOpHead),     ("tail", psOpTail),
         ("regexp", psOpRegexp), ("regsub", psOpRegsub)
+        -- terminal:
+        ("initwtm", psOpInitwtm),   ("getbuffsize", psOpGetbuffsize),
+        ("getline", psOpGetline),   ("setline", psOpSetline),
+        ("getxpos", psOpGetxpos),   ("getypos", psOpGetypos),
+        ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
+        ("getxsize", psOpGetxsize), ("getysize", psOpGetysize),
+        ("winup", psOpWinup),       ("windown", psOpWindown),
+        ("openfile", psOpOpenfile), ("writefile", psOpWritefile)
         ]
 
 
@@ -240,6 +249,14 @@ psExec st (PSList []) = return $ Right st
 -- psExec's default case (call psInterp):
 psExec st obj = psInterp st obj
 
+
+psExecFile :: PSState -> FilePath -> IO (Either String PSState)
+
+psExecFile st filename = do
+    text <- catch (readFile filename) (const "")
+    case psParse text of
+        Left msg -> error text
+        Right obj -> psExec st obj
 
 
 ensureNArgs :: String -> Int -> PSState -> IO (Either String PSState) -> IO (Either String PSState)
@@ -505,25 +522,6 @@ psOpTail st = ensureNArgs "tail" 1 st $ case stack st of
         _ -> Left "psInterp error: tail: null list"
     _ ->return $ Left "psInterp error: tail: not a string/list on top of the stack"
 
------- BUFFER MANAGER WRAPPER ------
-
-psOpNextBuffer :: PSState -> IO (Either String PSState)
-psOpNextBuffer st = do
-    -- este código hace update:
-    (bm', res) <- atomically (do
-        let (bm', res) = (runBM nextBuffer) (currentBM st) -- :: Buffer 
-        writeTVar (bufferManager st) bm'
-        return (bm', res))
-    return $ Right st {stack = PSInt res : stack st, currentBM = bm'}
-
-psOpUpdate :: PSState -> IO (Either String PSState)
-psOpUpdate st = do
-    atomically $ writeTVar (bufferManager st) (currentBM st)
-    return $ Right st
-
-psOpGetLine :: PSState -> IO (Either String PSState)
-psOpGetLine st = undefined
-
 psOpRegexp :: PSState -> IO (Either String PSState)
 psOpRegexp st = ensureNArgs "regexp" 2 st $ case stack st of
     (PSString subj:PSString re:ss) -> do
@@ -563,19 +561,113 @@ psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
         | otherwise = c : repl' cs res
     repl' "" _ = ""
 
---main = let Right o = psParse "0 1 0 5 {+} for" in psExec psNewState o >>= \(Right st) -> print $ stack st
+------ BUFFER MANAGER WRAPPER ------
 
-main = psNewState >>= work
-    where
-    work :: PSState -> IO a
-    work s = do
+psOpInitwtm :: PSState -> IO (Either String PSState)
+psOpInitwtm st = case wtm st of
+    Nothing -> initWTM >> Return $ Right st
+    Just wtm -> return $ Right st
+
+
+psOpGetbuffsize :: PSState -> IO (Either String PSState)
+psOpGetbuffsize st = return $ Right st {stack = PSInt (getBufSize (wtm st)) : stack st}
+
+psOpGetline :: PSState -> IO (Either String PSState)
+psOpGetline st = ensureNArgs "getline" 1 st $ case stack st of
+    (PSInt line : ss) -> return $ Right st {stack = PSString (getLine (wtm st) line) : ss}
+    _ ->return $ Left "psInterp error: getline: not an int on top of the stack"
+
+psOpSetline :: PSState -> IO (Either String PSState)
+psOpSetline st = ensureNArgs "setline" 2 st $ case stack st of
+    (PSString txt : PSInt num : ss) -> do
+        wtm' <- setline (wtm st) num txt
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: setline: not an int, string on top of the stack (string topmost)"
+
+psOpGetxpos :: PSState -> IO (Either String PSState)
+psOpGetxpos st = return $ Right st {stack = PSInt (getXpos (wtm st)) : stack st}
+
+psOpGetypos :: PSState -> IO (Either String PSState)
+psOpGetypos st = return $ Right st {stack = PSInt (getYpos (wtm st)) : stack st}
+
+psOpSetxpos :: PSState -> IO (Either String PSState)
+psOpSetxpos st = ensureNArgs "setxpos" 1 st $ case stack st of
+    (PSInt pos : ss) -> do
+        wtm' <- setXpos (wtm st) pos
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: setxpos: not an int on top of the stack"
+
+psOpSetypos :: PSState -> IO (Either String PSState)
+psOpSetypos st = ensureNArgs "setypos" 1 st $ case stack st of
+    (PSInt pos : ss) -> do
+        wtm' <- setYpos (wtm st) pos
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: setypos: not an int on top of the stack"
+
+psOpGetxsize :: PSState -> IO (Either String PSState)
+psOpGetxsize st = return $ Right st {stack = PSInt (getXsize (wtm st)) : stack st}
+
+psOpGetysize :: PSState -> IO (Either String PSState)
+psOpGetysize st = return $ Right st {stack = PSInt (getYsize (wtm st)) : stack st}
+
+psOpWinup :: PSState -> IO (Either String PSState)
+psOpWinup st = winUp (wtm st) >>= \w -> return $ Right st {wtm = w}
+
+psOpWindown :: PSState -> IO (Either String PSState)
+psOpWindown st = winDown (wtm st) >>= \w -> return $ Right st {wtm = w}
+
+-- 'o' True, 'O' False.
+psOpOpenline :: PSState -> IO (Either String PSState)
+psOpOpenline st = ensureNArgs "openline" 1 st $ case stack st of
+    (PSInt after : ss) -> do
+        wtm' <- openLine (after /= 0) (wtm st)
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: openline: not an int on top of the stack"
+
+psOpOpenfile :: PSState -> IO (Either String PSState)
+psOpOpenfile st = ensureNArgs "openfile" 1 st $ case stack st of
+    (PSString filename : ss) -> do
+        wtm' <- openFile (wtm st) filename
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: openfile: not a string on top of the stack"
+
+psOpWritefile :: PSState -> IO (Either String PSState)
+psOpWritefile st = ensureNArgs "writefile" 1 st $ case stack st of
+    (PSList [PSString filename] : ss) -> do
+        wtm' <- writeFile (wtm st) (Just filename)
+        return $ Right st {stack = ss, wtm = wtm'}
+    (PSList [] : ss) -> do
+        wtm' <- writeFile (wtm st) Nothing
+        return $ Right st {stack = ss, wtm = wtm'}
+    _ ->return $ Left "psInterp error: openfile: an empty list or a list with the filename must be on top of the stack"
+
+------ MAIN LOOP ------
+
+main = do
+    s <- psNewState
+    args <- getArgs
+    let st = s {globDict = M.insert (PSName False "args") (PSList $ map PSString args) $ globDict s}
+
+    -- on posix (unix/linux/mac): $HOME/.appName
+    -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
+    home <- getAppUserDataDirectory
+
+    psExecFile st "init.ps"
+    psExecFile st "/etc/init.ps"
+    psExecFile st [joinPath home "init.ps"]
+    psExecFile st "run.ps"
+    psExecFile st "/etc/run.ps"
+    terminal st
+
+terminal :: PSState -> IO a
+terminal s = do
         putStr ((show $ length $ stack s) ++ "> ")
         hFlush stdout
         line <- getLine
         case psParse line of
-            Left m -> putStrLn m >> work s
+            Left m -> putStrLn m >> terminal s
             Right c -> psExec s c >>= \r -> case r of
-                Left m -> putStrLn m >> work s
-                Right s' -> print s' >> work s'
+                Left m -> putStrLn m >> terminal s
+                Right s' -> print s' >> terminal s'
 
 -- vi: et sw=4

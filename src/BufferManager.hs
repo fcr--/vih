@@ -10,7 +10,6 @@ import Prelude hiding (lookup)
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,maxbuffer :: Int -- highest identifier given in a session
-                          ,cursors :: Map Int Int
 --                          ,mystery :: Map Int Int
                          } deriving Show
 
@@ -21,7 +20,7 @@ data BManager = BManager {
 -- Constructor, at the beginning ... there is always an empty buffer (i.e. one line, but empty)
 
 newBM :: BManager
-newBM = BManager (singleton 0 Buffer.newBuf) 1 (singleton 0 0) -- empty -- PARA mystery
+newBM = BManager (singleton 0 Buffer.newBuf) 1  -- empty -- PARA mystery
 
 -- Creates a new buffer, cursor at position (0,0)
 newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
@@ -31,15 +30,14 @@ newBuffer bm (Just fp)	=	(>>=) (Buffer.readFile fp) $  \b -> let bm' = insBuffer
 
 -- internal function
 insBuffer :: BManager -> B.Buffer -> BManager
-insBuffer bm buff	=	bm { buffers = insert n buff buffer, maxbuffer = n + 1, cursors = insert n 0 cursor}
+insBuffer bm buff	=	bm { buffers = insert n buff buffer, maxbuffer = n + 1}
 	where
 		n = maxbuffer bm
 		buffer = buffers bm	
-		cursor = cursors bm
 
 -- deletes a given buffer (chosen by number)
 deleteBuffer :: BManager -> Int -> BManager
-deleteBuffer bm bn	=	bm { buffers = delete bn (buffers bm), cursors = delete bn (cursors bm) }
+deleteBuffer bm bn	=	bm { buffers = delete bn (buffers bm)}
 
 -- Number of buffers.
 getBuffSizeBM :: BManager  -> Int
@@ -83,12 +81,15 @@ getYsizeBM bm bn	=	case lookup bn (buffers bm) of
 
 -- settes and getters of cursors
 
-getCursor :: BManager -> Int -> Int
-getCursor bm bn = case lookup bn (cursors bm) of
-			Just x  -> x
+getXposBM :: BManager -> Int -> Int
+getXposBM bm bn = case lookup bn (buffers bm) of
+			Just buff  -> Buffer.getX buff
 			Nothing -> undefined -- TODO ..good luck
 
 -- BManager -> Buffer Number -> Position -> New buffer manager
-setCursor :: BManager -> Int -> Int -> BManager
-setCursor bm bn newline | member bn (cursors bm)	=	bm { cursors = insert bn newline (cursors bm)}
-			| otherwise			=	bm -- TODO BEWARE
+setXposBM :: BManager -> Int -> Int -> BManager
+setXposBM bm bn newpos = case lookup bn mp of
+			Just buff  -> bm {buffers = insert bn (Buffer.setX newpos buff) mp}
+			Nothing -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
