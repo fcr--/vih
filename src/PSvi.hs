@@ -194,14 +194,18 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         -- control:
         ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
         ("forall", psOpForall), ("repeat", psOpRepeat), ("loop", psOpLoop),
-        ("exit", psOpExit),     ("exec", psOpExec),
+        ("exit", psOpExit),     ("exec", psOpExec),     --("filter", psOpFilter),
+        ("try", psOpTry),
         -- data:
         ("[", psOpMark),        ("]", psOpCreateList),  ("<<", psOpMark),
         (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
-        ("def", psOpDef),
+        ("def", psOpDef),       ("get", psOpGet),       ("known", psOpKnown),
+        ("load", psOpLoad),     ("put", psOpPut),
         ("begin", psOpBegin),   ("end", psOpEnd),
         ("head", psOpHead),     ("tail", psOpTail),
-        ("regexp", psOpRegexp), ("regsub", psOpRegsub)
+        ("regexp", psOpRegexp), ("regsub", psOpRegsub),
+        ("currentdict", psOpCurrentdict),
+        ("type", psOpType),
         -- terminal:
         ("initwtm", psOpInitwtm),   ("getbuffsize", psOpGetbuffsize),
         ("getline", psOpGetline),   ("setline", psOpSetline),
@@ -403,7 +407,9 @@ psOpFor st = ensureNArgs "for" 3 st $ case stack st of
 
 psOpForall :: PSState -> IO (Either String PSState)
 psOpForall st = ensureNArgs "forall" 2 st $ case stack st of
-    (proc@(PSList _):l@(PSList list):ss) -> forall' proc $ map (:[]) list
+    (proc@(PSList _):PSList list:ss) -> forall' proc [ [o] | o <- list ]
+    (proc@(PSList _):PSString str:ss) -> forall' proc [ [PSString c] | c <- str]
+    (proc@(PSList _):PSMap dict):ss) -> forall' proc [ [k, v] | (k,v) <- M.toList dict ]
     _ ->return $ Left "psInterp error: forall: top two elements must have dict/string/list and code(list) type (code(list) on top)"
     where
     forall :: PSState -> PSObject -> [[PSObject]] -> IO (Either String PSState)
@@ -449,6 +455,13 @@ psOpExec st = ensureNArgs "exec" 1 st $ case stack st of
     (o:ss) -> psExec st {stack = ss} o
     _ -> return $ Left "psInterp error: exec: empty stack"
 
+psOpTry :: PSState -> IO (Either String PSState)
+psOpTry st = ensureNArgs "try" 1 st $ case stack st of
+    (PSList o:ss) -> psExec st {stack = ss} o >>= \res -> case res of
+        Right st' -> return $ Right st' {stack = PSString "" : stack st'}
+        Left msg -> return $ Right st {stack = PSString msg : ss}
+    _ -> return $ Left "psInterp error: try: not a code (list) on top of the stack"
+
 ------ POSTSCRIPT DATA OPERATORS ------
 
 psOpMark :: PSState -> IO (Either String PSState)
@@ -493,6 +506,39 @@ psOpDef st = ensureNArgs "def" 2 st $ case stack st of
     (v:k:ss) -> case dictStack st of
         [] -> return $ Right st {globDict = M.insert k v $ globDict st, stack = ss}
         (d:ds) -> return $ Right st {dictStack = M.insert k v d : ds, stack = ss}
+
+psOpGet :: PSState -> IO (Either String PSState)
+psOpGet st = ensureNArgs "get" 2 st $ case stack st of
+    (key : PSMap dict : ss) -> return $ if key `M.member` dict
+        then Right st {stack = (dict M.! key) : ss}
+        else Left "psInterp error: get: key not in dictionary"
+    (PSInt idx : PSString str : ss) -> return $ if idx >= 0 && idx < length str
+        then Right st {stack = PSString (str !! idx) : ss}
+        else Left "psInterp error: get: index out of bounds"
+    (PSInt idx : PSList list : ss) -> return $ if idx >= 0 && idx < length list
+        then Right st {stack = (list !! idx) : ss}
+        else Left "psInterp error: get: index out of bounds"
+    _ -> return $ Left "psInterp error: get: type error (check documentation PSvi.txt)"
+
+psOpKnown :: PSState -> IO (Either String PSState)
+psOpKnown st = ensureNArgs "known" 2 st $ case stack st of
+    (key : PSMap dict : ss) -> return $ Right st {stack = PSInt (if key `M.member` dict then 1 else 0) : ss}
+    (obj : PSList list : ss) -> return $ Right st {stack = PSInt (if obj `elem` list then 1 else 0) : ss}
+    _ -> return $ Left "psInterp error: known: type error (check documentation)"
+
+psOpLoad :: PSState -> IO (Either String PSState)
+psOpLoad st = ensureNArgs "load" 1 st $ case find (dictStack st ++ [globDict st]) of
+        Just obj -> return $ Right st {stack = obj : ss}
+        Nothing -> return $ Left "psInterp error: load: key not found"
+    where
+    (key : ss) = stack st
+    find (d:ds) = M.lookup key d <|> find ds
+    find [] = Nothing
+
+psOpPut :: PSState -> IO (Either String PSState)
+psOpPut st = ensureNArgs "put" 3 st $ case stack st of
+    (k:v:PSMap dict:ss) -> return $ Right st {stack = PSMap (M.insert k v dict) : ss}
+    _ -> return $ Left "psInterp error: put: third element on the stack from top must be a dictionary"
 
 psOpBegin :: PSState -> IO (Either String PSState)
 psOpBegin st = return $ Right st { dictStack = M.empty : dictStack st }
@@ -540,12 +586,12 @@ psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
     (PSString replstr:PSString subj:PSString re:ss) -> do
         res <- PCRE.compile PCRE.compBlank PCRE.execBlank re
         case res of
-            Left _ -> return $ Right $ st {stack = PSString subj : stack st}
+            Left _ -> return $ Right st {stack = PSString subj : stack st}
             Right regex -> do
                 res <- PCRE.regexec regex subj
                 return $ case res of
-                    Left _ -> Right $ st {stack = PSString subj : ss}
-                    Right result -> Right $ st {stack = PSString (repl replstr subj result) : ss}
+                    Left _ -> Right st {stack = PSString subj : ss}
+                    Right result -> Right st {stack = PSString (repl replstr subj result) : ss}
     _ -> return $ Left "psInterp error: regsub: types not string, string on top of the stack"
     where
     repl :: String -> String -> Maybe (String, String, String, [String]) -> String
@@ -561,13 +607,26 @@ psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
         | otherwise = c : repl' cs res
     repl' "" _ = ""
 
+psOpCurrentdict :: PSState -> IO (Either String PSState)
+psOpCurrentdict st = return $ Right st {stack = PSMap dict : stack st}
+    where dict = (if null (dictStack st) then head . dictStack else globDict) st
+
+psOpType :: PSState -> IO (Either String PSState)
+psOpType st = ensureNArgs "type" 1 st $ case stack st of
+    (PSString _ : ss) -> return $ Right st {stack = PSString "string" : ss}
+    (PSInt _ : ss) -> return $ Right st {stack = PSString "int" : ss}
+    (PSName _ _: ss) -> return $ Right st {stack = PSString "name" : ss}
+    (PSMap _ : ss) -> return $ Right st {stack = PSString "map" : ss}
+    (PSList _ : ss) -> return $ Right st {stack = PSString "list" : ss}
+    (PSInternalOp _ _: ss) -> return $ Right st {stack = PSString "internal" : ss}
+    (PSMark _ : ss) -> return $ Right st {stack = PSString "mark" : ss}
+
 ------ BUFFER MANAGER WRAPPER ------
 
 psOpInitwtm :: PSState -> IO (Either String PSState)
 psOpInitwtm st = case wtm st of
     Nothing -> initWTM >> Return $ Right st
     Just wtm -> return $ Right st
-
 
 psOpGetbuffsize :: PSState -> IO (Either String PSState)
 psOpGetbuffsize st = return $ Right st {stack = PSInt (getBufSize (wtm st)) : stack st}

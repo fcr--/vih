@@ -113,20 +113,20 @@ Operators (sorted by name):
 
     Push the current dictionary in the stack.
 
-  currentsystemparams:	- currentsystemparams dict
+  (TODO) currentsystemparams:	- currentsystemparams dict
 
     Pushes a dictionary with all the key/values of the current settings
     on the application.
 
-  cvi:	string cvi int
+  (TODO) cvi:	string cvi int
 
     Convert to int. May throw errors.
 
-  cvs:	obj cvs string
+  (TODO) cvs:	obj cvs string
 
     Converts any object to a string, showing a valid representation of itself.
 
-  cvx:  string cvx proc
+  (TODO) cvx:  string cvx proc
 
     Converts to proc (parsing the input as a program). May throw errors.
 
@@ -163,9 +163,9 @@ Operators (sorted by name):
   exit:	- exit -
 
     Breaks the innermost loop. The following operators are considered loops:
-    for, forall, loop, repeat.
+    filter, for, forall, loop, repeat.
 
-  filter:	dict proc   filter filteredDict
+  (TODO) filter:	dict proc   filter filteredDict
 		list proc   filter filteredList
 		string proc filter filteredString
 
@@ -216,12 +216,12 @@ Operators (sorted by name):
     If it's a list, return the index-th element of the list. The index must
     be an integer between 0 and length(list)-1, or a "rangecheck" error occurs.
 
-  getinterval:	list index count   getinterval sublist
+  (TODO) getinterval:	list index count   getinterval sublist
 		string index count getinterval substring
 
     TODO: write documentation.
 
-  globaldict:	- globaldict dict
+ (TODO)  globaldict:	- globaldict dict
 
     Pushes back the global dictionary.
 
@@ -322,7 +322,7 @@ Operators (sorted by name):
     Example: 1 2 3 4 5 6 7  5 2 roll          =>   1 2 6 7 3 4 5
     Example: "a" "b" "c" "d"  3 -1 roll pop   =>   "a" "c" "d"
 
-  search:	haystack needle search post match pre 1  (if found)
+  (TODO) search:	haystack needle search post match pre 1  (if found)
 				       string 0          (otherwise)
 
     Looks for the first occurrence of the string needle in the string haystack,
@@ -332,19 +332,19 @@ Operators (sorted by name):
     "another day" "th" search   =>   "er day" "th" "ano" 1
     "foo bar" "A" search        =>   "foo bar" 0
 
-  setglobaldict:	dict setglobaldict -
+  (TODO) setglobaldict:	dict setglobaldict -
 
     Pops a dictionary from the top of the stack, and stores that dictionary
     as the global one.
 
-  store:	key value store -
+  (TODO) store:	key value store -
 
     Searches for key in each dictionary on the dictionary stack, starting with
     the topmost dictionary until key is found. If key is not found, then it
     stores the key/value on the current dictionary, otherwise, the value
     associated with the found key is replaced by this new value.
 
-  stringwidth:	string stringwidth width
+  (TODO) stringwidth:	string stringwidth width
 
     Pops a string from the top of the dictionary, and returns the width it
     would occupy when printing on the terminal. For printable chars, the width
@@ -371,18 +371,19 @@ Operators (sorted by name):
     Pops an object, and returns a string representation of its type.
 
     String      -> "string"
-    Dictionary  -> "dict"
+    Dictionary  -> "map"
     Integer     -> "int"
     Mark type   -> "mark"  (created with [ and <<)
     List        -> "list"
-    Code        -> "code"
+    Name	-> "name"
+    Internal Op -> "internal"
 
-  undef:	dict key undef dict
+  (TODO) undef:	dict key undef dict
 
     Pops a key and a dict, and pushes back a copy of the dict without the key.
     No error occurs if the key is not present on the dict.
 
-  where:	key where dict 1 (if found)
+  (TODO) where:	key where dict 1 (if found)
 			  0      (otherwise)
 
     Pops a key, and searches from the top dictionary on the dictionary stack
