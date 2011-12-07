@@ -1,5 +1,4 @@
 module TerminalInterfaces where
-
 import Terminal
 import Control.Monad.Reader
 import Control.Monad.State
@@ -64,65 +63,28 @@ getBuffSize wtm = getBuffSizeBM (bm wtm)
 getLine wtm lnum = bmOp ((\a b c -> getLineBM b c a) lnum) wtm 
 setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \(cosa,f) -> showWTM cosa >> return cosa
 
-getXpos wtm = bmOp getCursor wtm
+getXpos wtm = bmOp getXposBM wtm
 getYpos wtm = bmOp getYposBM wtm
---CUALQUIERA
-{-
-setXpos wtm nx = return ( wtm{curwdw = setX (curwdw wtm) nx} ) >>= \cosa -> showWTM cosa >> return cosa
--}
 
-setXpos wtm nx = return ((\(wtman,nBM) -> wtman{bm = nBM nx }) $ loOp setCursor id wtm) >>= \cosa -> showWTM cosa >> return cosa
+setXpos wtm nx = return ((\(wtman,nBM) -> wtman{bm = nBM nx }) $ loOp setXposBM id wtm) >>= \cosa -> showWTM cosa >> return cosa
 setYpos wtm ny = return ((\(wtman,nBM) -> wtman{bm = nBM ny }) $ loOp setYposBM id wtm) >>= \cosa -> showWTM cosa >> return cosa
 
-getXsize wtm = bmOp getCursor wtm
+getXsize wtm = bmOp getXsizeBM wtm
 getYsize wtm = bmOp getYsizeBM wtm 
 
 
 --TODO: DEFINE STUFF
-winUp = undefined
-winDown = undefined
-openLine = undefined
+wsth :: (BManager -> Int -> Int -> Int -> BManager ) -> WTManager -> WTManager
+wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
+    where
+        navIO (x:xs) lo = case lo of
+                        (Hspan a b lst) -> navIO xs (fst (lst!!x))
+                        (Vspan a b lst) -> navIO xs (fst (lst!!x))
+                        (Window (x,y) z) -> ask >>= \a -> return (f a z x y)
+winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
+winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
+openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>= \cosa -> showWTM cosa >> return cosa) updown
 openFile = undefined
 writeFile = undefined
-{-
-getXpos :: WTManager -> Int
-getYpos :: WTManager -> Int
-setXpos :: WTManager -> Int -> IO WTManager
-setYpos :: WTManager -> Int -> IO WTManager
 
---Getter de tamanio en largo (de lineas) del archivo y de largo
---de la linea del buffer getXsize :: WTManager -> Int
-getYsize :: WTManager -> Int
-
---Para mover la ventana para arriba o para abajo
-winUp,winDown :: WTManager -> IO WTManager
-
---Para abrir archivos y asociarlos a un buffer en que estemos parados
---O grabar el buffer en el que estamos parados en el archivo dado
-openFile :: WTManager -> IO WTManager
-writeFile :: WTManager -> Maybe String -> IO WTManager
---Interfaces file for WTManager (Terminal.hs)
--}
-
-{-
-getBuffPos wtm = nav (curwdw wtm) (lo wtm)
-    where nav (x:xs) lay =
-            case lay of
-                (Hspan x y lst) = nav xs (lst!!x)
-                (Vspan x y lst) = nav xs (lst!!x)
-                (Window (x,y) z) = z
-          nav sth lay = undefined
-setBuffPos wtm npos = do
-                 things <- wtm{lo = navIO (curwdw wtm) (lo wtm)}
-                 (DisplayRegion w h) <- (terminal.vty wtm)
-                 printTerm things --a implementar en Terminal.hs
-                 return things
-    where navIO (x:xs) lay =
-            case lay of
-                (Hspan x y lst) = Hspan x y (take (x-1) lay ++ [(\(lout,s) -> (navIO xs lout,s))] ++ drop x lay)
-                (Vspan x y lst) = Vspan x y (take (x-1) lay ++ [(\(lout,s) -> (navIO xs lout,s))] ++ drop x lay)
-                (Window (x,y) z) = Window (x,y) z
-                xs = xs -}
-main :: IO ()
-main = undefined  
 -- vi: et sw=4
