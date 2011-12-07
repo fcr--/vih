@@ -78,7 +78,9 @@ getYsizeBM :: BManager -> Int -> Int
 getYsizeBM bm bn	=	case lookup bn (buffers bm) of
 					Just buff -> Buffer.getSize buff
 					Nothing -> undefined  -- TODO ..good luck
-
+getXsizeBM :: BManager -> Int -> Int
+getXsizeBM bm bn =	case lookup bn (buffers bm) of
+				Just buff -> length $ Buffer.getLine buff
 -- settes and getters of cursors
 
 getXposBM :: BManager -> Int -> Int
@@ -90,6 +92,18 @@ getXposBM bm bn = case lookup bn (buffers bm) of
 setXposBM :: BManager -> Int -> Int -> BManager
 setXposBM bm bn newpos = case lookup bn mp of
 			Just buff  -> bm {buffers = insert bn (Buffer.setX newpos buff) mp}
+			Nothing -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
+
+winUpBM :: BManager -> Int -> Int -> Int -> BManager
+winUpBM = undefined
+winDownBM :: BManager -> Int -> Int -> Int -> BManager
+winDownBM = undefined
+
+openLineBM :: BManager -> Int -> Bool -> BManager
+openLineBM bm bn updown = case lookup bn (buffers bm) of
+			Just buff -> bm {buffers = insert bn (Buffer.openLine buff updown) mp}
 			Nothing -> undefined -- TODO ..good luck
 	where
 		mp = buffers bm
