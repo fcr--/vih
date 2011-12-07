@@ -10,12 +10,15 @@ data Buffer = Buffer {
 	contents :: ([BufferLine], BufferLine, [BufferLine]),
 	curLine  :: Int,
 	numLines :: Int,
+-- TODO : right now these are not being used.
 	grammar  :: Defs,
 	colors   :: M.Map String (Char -> Image) 
 	} -- TODO: atributos de los no-terminales
 
-data BufferLine = BufferLine	{  line :: String , memo :: [Image] }-- tabla de memoization...
+-- highlighting with memoization
+data BufferLine = BufferLine	{  line :: String , memo :: [Image] } 
 
+-- For debugging
 instance Show Buffer where
 	show buff = "Buffer (" ++ show pr ++ ", " ++ show c ++ ", " ++ show sig ++ ") " ++ show cr ++ " " ++ show nl
 		where
@@ -123,11 +126,16 @@ unLoadLine bl = line bl
 
 
 highlight :: Buffer -> ([[Image]],[Image],[[Image]])
-highlight buff |	trace "FALTA LO DE EXTRAER DE UN ARCHIVO" False	= undefined
+-- Annoying a bit...
+--highlight buff |	trace "FALTA LO DE EXTRAER LA GRAMÁTICA DE UN ARCHIVO" False	= undefined
+-- we are not re-computing the highlighting here, just extracting the memoized value.
 highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 
 
 ------ Various functions ------
+
+getSize :: Buffer -> Int
+getSize buff = numLines buff
 
 -- Get the contents of the currennt line
 
@@ -157,4 +165,28 @@ setY y buff	=	find cl (contents buff)
 						|	pos < fy	= find (pos+1) ( c:pr , head sig, tail sig)
  						|	otherwise 	= buff { contents = cont , curLine = fy}
 
+-- test
 
+main :: IO ()
+main = do
+	vty <- mkVty
+	buffer <- Buffer.readFile "Terminal.hs"
+	let (_,c,sig) = Buffer.highlight buffer
+        update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ take 30 (c:sig)
+	loop buffer vty
+        shutdown vty
+
+loop buffer vty = do
+			nextEV <- next_event vty
+			case nextEV of
+				EvKey ( KASCII 'q' ) []  -> return()
+				EvKey ( KASCII 'a' ) []  -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 l1)) ++ [c1] ++ (take 15 r1) ) >> loop bu vty
+				EvKey ( KASCII 'j' ) [] -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 lj)) ++ [cj] ++ (take 15 rj) ) >> loop bj vty
+				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map (foldr (<|>) empty_image)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
+	where
+		(l,c,r) = Buffer.highlight bd
+		(l1,c1,r1) = Buffer.highlight bu
+		bd = ( lineDown buffer )
+		bu = (lineUp buffer)
+		bj = joinLine buffer
+		(lj,cj,rj) = (Buffer.highlight bj)

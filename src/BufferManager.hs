@@ -1,7 +1,8 @@
 module BufferManager(BM,runBM,BManager,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM) where
 import qualified Buffer as B
-import Data.Map(Map,(!),singleton,keys,insert,lookup)
+import Data.Map(Map,(!),singleton,keys,insert,lookup,size)
 import Data.Maybe(fromJust)
+import qualified Buffer as Buffer
 import System.IO
 import Prelude hiding (lookup)
 ------ the datatype of buffer controllers ------ 
@@ -66,3 +67,37 @@ initBM = BManager { buffers = singleton 0 B.newBuf
                   , curBuffer = 0, maxbuffer = 1, vNumber = 0}
 
 -- vi: et sw=4
+
+-- Number of buffers.
+getBuffSizeBM :: BManager  -> Int
+getBuffSizeBM bm  = size $ buffers bm
+
+
+-- BManager -> Buffer Number -> Line Number -> (New BManager, String)
+getLineBM :: BManager -> Int -> Int -> String
+getLineBM bm bn line = case lookup bn (buffers bm) of
+                            Just buff -> Buffer.getLine $ Buffer.setY line buff
+                            Nothing   -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
+
+-- TODO : ESTRUCTURA MEJOR.
+-- BManager -> Buffer Number -> Line Number -> String -> ...
+setLineBM :: BManager -> Int -> Int -> String -> BManager
+setLineBM bm bn line s = case lookup bn mp of
+                            Just buff -> bm { buffers = insert bn ( Buffer.setY (Buffer.getLineNumber buff) (Buffer.setLine s $ Buffer.setY line buff) ) mp }
+                            Nothing   -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
+
+-- BManager -> Buffer Number -> Line Number -> BManager
+setYposBM :: BManager -> Int -> Int -> BManager
+setYposBM bm bn line = case lookup bn mp of
+                            Just buff -> bm { buffers = insert bn (Buffer.setY line buff) mp }
+                            Nothing   -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
+
+--openFile :: BManager -> String -> BManager
+
+

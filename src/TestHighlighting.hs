@@ -8,6 +8,7 @@ import qualified Data.Map as M
 
 -- TODO : \" should not be considered for strings.
 
+
 haskell = parseGrammar $ unlines [
   "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / . )*;",
 
