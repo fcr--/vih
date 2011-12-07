@@ -1,4 +1,4 @@
-module BufferManager(BManager,newBM,newBuffer,getLineBM,setLineBM,getBuffSizeBM,setYposBM) where
+module BufferManager where
 import qualified Buffer as B
 import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty,delete,member)
 import Data.Maybe(fromJust)
@@ -18,7 +18,7 @@ data BManager = BManager {
 --TODO: change all functions to actually do something
 ------ functions over BM ------
 
--- Constructor
+-- Constructor, at the beginning ... there is always an empty buffer (i.e. one line, but empty)
 
 newBM :: BManager
 newBM = BManager (singleton 0 Buffer.newBuf) 1 (singleton 0 0) -- empty -- PARA mystery
