@@ -1,6 +1,10 @@
 module BufferManager(BManager,newBM,newBuffer,getLineBM,setLineBM,getBuffSizeBM,setYposBM) where
 import qualified Buffer as B
+<<<<<<< HEAD
 import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty,delete)
+=======
+import Data.Map(Map,(!),singleton,delete,keys,insert,lookup,size,empty)
+>>>>>>> fc4d0985b4bc9f909271b86bf89cbb166e1150c7
 import Data.Maybe(fromJust)
 import qualified Buffer as Buffer
 import System.IO
