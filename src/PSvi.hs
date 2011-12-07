@@ -14,13 +14,17 @@ import Data.Char
 import Data.Maybe(isNothing, fromJust)
 import Control.Applicative
 import Control.Concurrent.STM
+import Control.Monad(when)
 import System.IO as SIO
 import System(getArgs)
 import System.Directory(getAppUserDataDirectory)
 import System.FilePath(joinPath)
+import System.Exit(exitSuccess, exitFailure)
 import qualified Data.Map as M
 import qualified Data.Bits as B
 import qualified Text.Regex.PCRE.String as PCRE
+
+import qualified Graphics.Vty (shutdown)
 
 data PSObject = PSString !String
               | PSInt !Int
@@ -196,16 +200,17 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
         ("forall", psOpForall), ("repeat", psOpRepeat), ("loop", psOpLoop),
         ("exit", psOpExit),     ("exec", psOpExec),     --("filter", psOpFilter),
-        ("try", psOpTry),
+        ("try", psOpTry),       ("quit", psOpQuit),
         -- data:
         ("[", psOpMark),        ("]", psOpCreateList),  ("<<", psOpMark),
         (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
         ("def", psOpDef),       ("get", psOpGet),       ("known", psOpKnown),
-        ("load", psOpLoad),     ("put", psOpPut),
+        ("load", psOpLoad),     ("put", psOpPut),       ("store", psOpStore),
         ("begin", psOpBegin),   ("end", psOpEnd),
-        ("head", psOpHead),     ("tail", psOpTail),
-        ("regexp", psOpRegexp), ("regsub", psOpRegsub),
+        ("head", psOpHead),     ("tail", psOpTail),     ("getinterval", psOpGetinterval),
+        ("regexp", psOpRegexp), ("regsub", psOpRegsub), ("search", psOpSearch),
         ("currentdict", psOpCurrentdict),
+        ("globaldict", psOpGlobaldict),
         ("type", psOpType),
         -- terminal:
         ("initwtm", psOpInitwtm),   --("getbuffsize", psOpGetbuffsize),
@@ -456,6 +461,9 @@ psOpLoop st = ensureNArgs "loop" 1 st $ case stack st of
 psOpExit :: PSState -> IO (Either String PSState)
 psOpExit st = return $ Right (if retState st==PSRetOK then st {retState=PSRetBreak} else st)
 
+psOpQuit :: PSState -> IO (Either String PSState)
+psOpQuit st = exitSuccess
+
 psOpExec :: PSState -> IO (Either String PSState)
 psOpExec st = ensureNArgs "exec" 1 st $ case stack st of
     (o:ss) -> psExec st {stack = ss} o
@@ -546,6 +554,31 @@ psOpPut st = ensureNArgs "put" 3 st $ case stack st of
     (k:v:PSMap dict:ss) -> return $ Right st {stack = PSMap (M.insert k v dict) : ss}
     _ -> return $ Left "psInterp error: put: third element on the stack from top must be a dictionary"
 
+psOpStore :: PSState -> IO (Either String PSState)
+psOpStore st = ensureNArgs "store" 2 st $ case upd (dictStack st ++ [globDict st]) of
+        Just ds -> return $ Right st {stack = ss, dictStack = init ds, globDict = last ds}
+        Nothing -> psOpDef st
+    where
+    (value : key : ss) = stack st
+    upd (d:ds)
+        | M.member key d  = Just (M.insert key value d : ds)
+        | otherwise       = fmap (d:) (upd ds)
+    upd [] = Nothing
+
+psOpUndef :: PSState -> IO (Either String PSState)
+psOpUndef st = ensureNArgs "undef" 2 st $ case stack st of
+    (k:PSMap dict:ss) -> return $ Right st {stack = PSMap (M.delete k dict) : ss}
+    _ -> return $ Left "psInterp error: undef: second element on the stack from top must be a dictionary"
+
+psOpWhere :: PSState -> IO (Either String PSState)
+psOpWhere st = ensureNArgs "where" 1 st $ case find (dictStack st ++ [globDict st]) of
+        Just d -> return $ Right st {stack = PSInt 1 : PSMap d : ss}
+        Nothing -> return $ Right st {stack = PSInt 0 : ss}
+    where
+    (key : ss) = stack st
+    find (d:ds) = if M.member key d then Just d else find ds
+    find [] = Nothing
+
 psOpBegin :: PSState -> IO (Either String PSState)
 psOpBegin st = return $ Right st { dictStack = M.empty : dictStack st }
 
@@ -573,6 +606,16 @@ psOpTail st = ensureNArgs "tail" 1 st $ case stack st of
         (_:is) -> Right st {stack = PSList is : ss}
         _ -> Left "psInterp error: tail: null list"
     _ ->return $ Left "psInterp error: tail: not a string/list on top of the stack"
+
+psOpGetinterval :: PSState -> IO (Either String PSState)
+psOpGetinterval st = ensureNArgs "getinterval" 3 st $ case stack st of
+    (PSInt c : PSInt i : PSString str : ss) -> return $ if i>=0 && c>0 && i<length str
+        then Right st {stack = PSString (take c $ drop i $ str) : ss}
+        else Left "psInterp error: getinterval: index out of bounds"
+    (PSInt c : PSInt i : PSList list : ss) -> return $ if i>=0 && c>0 && i<length list
+        then Right st {stack = PSList (take c $ drop i $ list) : ss}
+        else Left "psInterp error: getinterval: index out of bounds"
+    _ -> return $ Left "psInterp error: get: type error (check documentation PSvi.txt)"
 
 psOpRegexp :: PSState -> IO (Either String PSState)
 psOpRegexp st = ensureNArgs "regexp" 2 st $ case stack st of
@@ -613,9 +656,23 @@ psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
         | otherwise = c : repl' cs res
     repl' "" _ = ""
 
+{-
+psOpSearch :: PSState -> IO (Either String PSState)
+psOpSearch st = ensureNArgs "search" 2 st $ case stack st of
+    where
+-}
+
 psOpCurrentdict :: PSState -> IO (Either String PSState)
 psOpCurrentdict st = return $ Right st {stack = PSMap dict : stack st}
     where dict = (if null (dictStack st) then head . dictStack else globDict) st
+
+psOpGlobaldict :: PSState -> IO (Either String PSState)
+psOpGlobaldict st = return $ Right st {stack = PSMap (globDict st) : stack st}
+
+psOpSetglobaldict :: PSState -> IO (Either String PSState)
+psOpSetglobaldict st = ensureNArgs "setglobaldict" 1 st $ case stack st of
+    (PSMap m : ss) -> return $ Right st {stack = ss, globDict = m}
+    _ -> return $ Left "psInterp error: setglobaldict: type not string on top of the stack"
 
 psOpType :: PSState -> IO (Either String PSState)
 psOpType st = ensureNArgs "type" 1 st $ case stack st of
@@ -724,12 +781,15 @@ main = do
     psExecFile st $ joinPath [home, "init.ps"]
     psExecFile st "run.ps"
     psExecFile st "/etc/run.ps"
+    when (not $ isNothing $ wtm st) (Graphics.Vty.shutdown $ vty $ fromJust $ wtm st)
     terminal st
 
 terminal :: PSState -> IO a
 terminal s = do
         putStr ((show $ length $ stack s) ++ "> ")
         hFlush stdout
+        eof <- hIsEOF stdin
+        when eof exitSuccess
         line <- SIO.getLine
         case psParse line of
             Left m -> putStrLn m >> terminal s

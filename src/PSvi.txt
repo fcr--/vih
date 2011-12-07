@@ -165,6 +165,7 @@ Operators (sorted by name):
     Breaks the innermost loop. The following operators are considered loops:
     filter, for, forall, loop, repeat.
 
+  % en lugar de filter se puede usar un forall.
   (TODO) filter:	dict proc   filter filteredDict
 		list proc   filter filteredList
 		string proc filter filteredString
@@ -216,12 +217,14 @@ Operators (sorted by name):
     If it's a list, return the index-th element of the list. The index must
     be an integer between 0 and length(list)-1, or a "rangecheck" error occurs.
 
-  (TODO) getinterval:	list index count   getinterval sublist
+  getinterval:	list index count   getinterval sublist
 		string index count getinterval substring
 
-    TODO: write documentation.
+    If the first argument is a list, returns a new sublist starting at index
+    (0 based) of at most count elements. If the first argument is a string
+    then a substring is returned.
 
- (TODO)  globaldict:	- globaldict dict
+  globaldict:	- globaldict dict
 
     Pushes back the global dictionary.
 
@@ -246,6 +249,10 @@ Operators (sorted by name):
 
     Pops the non-negative int 'n' from the stack, counts back n positions from
     the top of the stack, and pushes a copy of that element.
+
+  initwtm:	- initwtm -
+
+    Initializes vty, thus this should not run inside the terminal.
 
   known:	dict key  known res
 		list elem known res
@@ -311,6 +318,10 @@ Operators (sorted by name):
     Pop a dictionary, a key and a value, and then it pushes a new dictionary
     with the same contents of the old one but with key associated with value.
 
+  quit:	- quit -
+
+    Exits the current program.
+
   repeat:	int1 proc repeat -
 
     Pop int1 and proc, and run proc int1 times.
@@ -332,12 +343,12 @@ Operators (sorted by name):
     "another day" "th" search   =>   "er day" "th" "ano" 1
     "foo bar" "A" search        =>   "foo bar" 0
 
-  (TODO) setglobaldict:	dict setglobaldict -
+  setglobaldict:	dict setglobaldict -
 
     Pops a dictionary from the top of the stack, and stores that dictionary
     as the global one.
 
-  (TODO) store:	key value store -
+  store:	key value store -
 
     Searches for key in each dictionary on the dictionary stack, starting with
     the topmost dictionary until key is found. If key is not found, then it
@@ -378,12 +389,12 @@ Operators (sorted by name):
     Name	-> "name"
     Internal Op -> "internal"
 
-  (TODO) undef:	dict key undef dict
+  undef:	dict key undef dict
 
     Pops a key and a dict, and pushes back a copy of the dict without the key.
     No error occurs if the key is not present on the dict.
 
-  (TODO) where:	key where dict 1 (if found)
+  where:	key where dict 1 (if found)
 			  0      (otherwise)
 
     Pops a key, and searches from the top dictionary on the dictionary stack
@@ -434,7 +445,7 @@ Operands ignored from the postscript standard:
   moveto, mul (* is implemented instead), newpath, noaccess, nocurrentpoint,
   null (another version is implemented instead), nulldevice, packedarray,
   pathbbox, pathforall, ¿print?, ¿printobject?, product, prompt, ¿pstack?,
-  ¿putinterval?, ¿quit?, ¿rand?, ¿rangecheck?, rcheck, rcurveto, ¿read?,
+  ¿putinterval?, ¿rand?, ¿rangecheck?, rcheck, rcurveto, ¿read?,
   readhexstring, ¿readline?, readonly, ¿readstring?, realtime, rectclip,
   rectfill, rectstroke, removeall, removeglyphs, ¿renamefile?, ¿resetfile?,
   resourceforall, resourcestatus, restore, reversepath, revision, rlineto,
