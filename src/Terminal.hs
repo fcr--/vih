@@ -118,7 +118,12 @@ getCommand' s wtm w h= do nEv <- next_event (vty wtm)
                                                         getCommand' newS wtm w h
                             EvKey (KEnter) _ -> do update (vty wtm) (pic_for_image $ armarCommand "Ejecutando" (fromIntegral w) (fromIntegral h) wtm)
                                                    return (Just s)
-                            EvKey (KEsc) _ -> do printloop (vty wtm) wtm w h
+                            EvKey (KBS) _ -> let newS = init s
+                                             in do update (vty wtm) (pic_for_image $ armarCommand newS (fromIntegral w) (fromIntegral h) wtm)
+                                                   getCommand' newS wtm w h
+                            EvKey (KLeft) _ -> getCommand' s wtm w h --TODO:all
+                            EvKey (KRight) _ -> getCommand' s wtm w h --TODO:all
+                            EvKey (KEsc) _ -> do printloop (vty wtm) wtm (fromIntegral w) (fromIntegral h)
                                                  return Nothing
                             EvResize nx ny -> do printloop (vty wtm) (resizeLayout nx ny wtm) (fromIntegral nx) (fromIntegral ny-1)
                                                  getCommand' s wtm w h
