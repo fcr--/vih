@@ -1,9 +1,5 @@
-<<<<<<< HEAD:src/TerminalInterfaces.hs
 module TerminalInterfaces where
 
-=======
-module Main where
->>>>>>> 3b8138dfc519ecc8689f9421b71214995866b3a3:src/TerminalInterfaces.hs
 import Terminal
 import Control.Monad.Reader
 import Control.Monad.State
