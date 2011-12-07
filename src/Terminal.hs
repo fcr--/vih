@@ -34,14 +34,11 @@ instance Monad WTM where
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
-initWTM :: BManager -> Vty -> WTManager
-initWTM ref vty = WTMa {lo = Vspan 80 22 [(Hspan 80 10 [(Window (40,10) 1,40),(Window (39,10) 1, 40)],10),(Window (80,11) 1,11)]
-                        ,curwdw = [0]
-                        ,wtmH = 0
-                        ,wtmW = 0
-                        ,bm = ref
-                        ,vty = vty
-                        }
+initWTM :: IO WTManager
+initWTM = do
+    v <- mkVty
+    (DisplayRegion w h) <- display_bounds (terminal v)
+    return $ WTMa {lo = Window (w,h-2) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
 
 instance MonadState WTManager WTM where
     get = WTM (\wtma -> (wtma,wtma))
@@ -211,3 +208,5 @@ splitLoX param l [x] |param = case l of
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
 --Hacer split V
+
+-- vi: et sw=4
