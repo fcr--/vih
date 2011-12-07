@@ -1,7 +1,7 @@
 
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
-module Terminal(WTManager,initWTM,showWTM,getKey,getCommand) where
+module Terminal where
 import BufferManager(BManager,newBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
@@ -23,14 +23,6 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,vty :: Vty
                       }
 
-
-newtype WTM a = WTM{runWTM :: WTManager -> (WTManager, a)}
-instance Monad WTM where
- --(>>=) :: WTM a -> (a -> WTM b) -> WTM b
- wtm >>= op = WTM (\wtma -> let (interWTM,a) = runWTM wtm wtma in
-                      runWTM (op a) interWTM)
- return a = WTM (\wtm -> (wtm,a))
- 
  -- The way to initialize the window manager at program startup
  -- TODO: change wsizes, Window initializer, possibly add a startup
  -- size variable
@@ -40,9 +32,6 @@ initWTM = do
     (DisplayRegion w h) <- display_bounds (terminal v)
     return $ WTMa {lo = Window (w,h-2) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v}
 
-instance MonadState WTManager WTM where
-    get = WTM (\wtma -> (wtma,wtma))
-    put wtm = WTM (\wtma -> (wtm,()))
 --Data representing current tiling. example:
 --
 -- Hspan 14 9 [Vspan 5 5 [Window 3 3 b1,Window 3 2 b2],Window 8 6 b3]
