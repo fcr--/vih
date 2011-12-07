@@ -1,6 +1,8 @@
+{-# OPTIONS -XMultiParamTypeClasses #-}
 module ReadHighlighting where
 import Peg.Peg
 import Graphics.Vty hiding (Attr, (<|>) )
+import qualified Graphics.Vty as Vty
 import Data.Map (Map, fromList)
 import Data.Char
 import Data.Monoid
@@ -52,6 +54,28 @@ instance Monoid Attr where
 				standout' = standout' a <|> standout' b
 			}
 
+-- Attr (defined here) to Vty.Attr
+attr2VtyAttr :: Attr -> Vty.Attr
+attr2VtyAttr attr = foldr (\f x -> f x) def_attr ( [stfg attr, stbg attr] ++ map (\f -> f attr) for_styles )
+
+stfg :: Attr -> Vty.Attr -> Vty.Attr
+stfg attr x	=	case fgColor attr of
+				Just c -> x `with_fore_color` c
+				Nothing -> x
+
+stbg :: Attr -> Vty.Attr -> Vty.Attr
+stbg attr x	=	case bgColor attr of
+				Just c -> x `with_back_color` c
+				Nothing -> x
+
+for_styles = map f [(bold',bold),(underline',underline),(dim',dim),(reverse',reverse_video ),(standout',standout)]
+
+f :: (Attr->Maybe (),Style) -> ( Attr -> Vty.Attr -> Vty.Attr)
+f (a,b) attr x	=	case a attr of
+				Just _ -> x `with_style` b
+				Nothing -> x
+
+
 read' :: String -> Attr
 read' s	|	s == "fblack"	=	mempty { fgColor = Just black}
 	|	s == "fwhite"	=	mempty { fgColor = Just white}
@@ -76,10 +100,7 @@ read' s	|	s == "fblack"	=	mempty { fgColor = Just black}
 	|	s == "standout"	=	mempty { standout' = Just () }
 	|	otherwise	=	undefined -- now, don't use this bit.
 
---instance Monoid Attr where
---	mempty = Attr Nothing Nothing Nothing -- TODO
---	mappend a b = 
-
+-- THE ACTUAL GRAMMAR !!! <------
 
 reader :: PegGrammar (Map String Attr)
 
