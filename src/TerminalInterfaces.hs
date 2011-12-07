@@ -13,7 +13,7 @@ getBuffSize :: WTManager -> Int
 
 --Getter y setter de linea. Para sustituir toda la linea
 getLine :: WTManager -> Int -> String
-setLine :: WTManager -> Int -> String -> IO (WTManager, String)
+setLine :: WTManager -> Int -> String -> IO WTManager
 
 --Getter y setters de posiciones en la window.
 getXpos :: WTManager -> Int
@@ -37,6 +37,7 @@ openFile :: WTManager -> String -> IO WTManager
 writeFile :: WTManager -> Maybe String -> IO WTManager
 --Interfaces file for WTManager (Terminal.hs)
 
+setX xs nx = init xs ++ [nx]
 bmOp :: (BManager->Int->a)->WTManager->a
 bmOp f wtm = snd.runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
     where (x:xs) nav lay =
@@ -61,8 +62,10 @@ setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \cosa-> showWTM.fst
 
 getXpos wtm = getXpos = last.curwdw wtm
 getYpos wtm = bmOp getYposBM wtm
-setXpos wtm Int = return ( wtm{
+setXpos wtm nx = return ( wtm{curwdw = setX (curwdw wtm) nx ) >>= \cosa -> showWTM cosa >> return cosa
+setYpos wtm ny = return (\(wtman,newBM) -> wtman{bm = newBM}) $ loOp setYposBM id wtm >>= \cosa -> showWTM cosa >> return cosa
 
+getXsize wtm = last $ curwdw wtm
 {-
 getXpos :: WTManager -> Int
 getYpos :: WTManager -> Int
