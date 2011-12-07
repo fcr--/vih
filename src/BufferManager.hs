@@ -33,6 +33,10 @@ insBuffer bm buff	=	bm { buffers = insert (maxbuffer bm) buff buffer, maxbuffer 
 	where
 		buffer = buffers bm
 
+-- deletes a given buffer (chosen by number)
+deleteBuffer :: BManager -> Int -> BManager
+deleteBuffer bm bn	=	bm { buffers = delete bn (buffers bm) }
+
 -- Number of buffers.
 getBuffSizeBM :: BManager  -> Int
 getBuffSizeBM bm  = size $ buffers bm
