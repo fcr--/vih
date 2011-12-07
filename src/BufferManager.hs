@@ -1,6 +1,6 @@
 module BufferManager(BManager,newBM,newBuffer,getLineBM,setLineBM,getBuffSizeBM,setYposBM) where
 import qualified Buffer as B
-import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty)
+import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty,delete,member)
 import Data.Maybe(fromJust)
 import qualified Buffer as Buffer
 import System.IO
@@ -10,6 +10,8 @@ import Prelude hiding (lookup)
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,maxbuffer :: Int -- highest identifier given in a session
+                          ,cursors :: Map Int Int
+--                          ,mystery :: Map Int Int
                          } deriving Show
 
 
@@ -19,9 +21,9 @@ data BManager = BManager {
 -- Constructor
 
 newBM :: BManager
-newBM = BManager empty 0
+newBM = BManager empty 0 empty
 
--- Creates a ne(BM,runBM,BManager,currentBuffer,nextBuffer,modBuffer,insBuffer,prevBuffer,initBM)w buffer 
+-- Creates a new buffer, cursor at position (0,0)
 newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
 newBuffer bm Nothing	=	let bm' = insBuffer bm B.newBuf in return (bm', maxbuffer bm' - 1)
 newBuffer bm (Just fp)	=	(>>=) (Buffer.readFile fp) $  \b -> let bm' = insBuffer bm b in return (bm', maxbuffer bm' - 1)
@@ -29,13 +31,15 @@ newBuffer bm (Just fp)	=	(>>=) (Buffer.readFile fp) $  \b -> let bm' = insBuffer
 
 -- internal function
 insBuffer :: BManager -> B.Buffer -> BManager
-insBuffer bm buff	=	bm { buffers = insert (maxbuffer bm) buff buffer, maxbuffer = maxbuffer bm + 1}
+insBuffer bm buff	=	bm { buffers = insert n buff buffer, maxbuffer = n + 1, cursors = insert n 0 cursor}
 	where
-		buffer = buffers bm
+		n = maxbuffer bm
+		buffer = buffers bm	
+		cursor = cursors bm
 
 -- deletes a given buffer (chosen by number)
 deleteBuffer :: BManager -> Int -> BManager
-deleteBuffer bm bn	=	bm { buffers = delete bn (buffers bm) }
+deleteBuffer bm bn	=	bm { buffers = delete bn (buffers bm), cursors = delete bn (cursors bm) }
 
 -- Number of buffers.
 getBuffSizeBM :: BManager  -> Int
@@ -66,6 +70,20 @@ setYposBM bm bn line = case lookup bn mp of
                             Nothing   -> undefined -- TODO ..good luck
 	where
 		mp = buffers bm
+ 
+getYsizeBM :: BManager -> Int -> Int
+getYsizeBM bm bn	=	case lookup bn (buffers bm) of
+					Just buff -> Buffer.getSize buff
+					Nothing -> undefined  -- TODO ..good luck
 
---openFile :: BManager -> String -> BManager
+-- settes and getters of cursors
 
+getCursor :: BManager -> Int -> Int
+getCursor bm bn = case lookup bn (cursors bm) of
+			Just x  -> x
+			Nothing -> undefined -- TODO ..good luck
+
+-- BManager -> Buffer Number -> Position -> New buffer manager
+setCursor :: BManager -> Int -> Int -> BManager
+setCursor bm bn newline | member bn (cursors bm)	=	bm { cursors = insert bn newline (cursors bm)}
+			| otherwise			=	bm -- TODO BEWARE
