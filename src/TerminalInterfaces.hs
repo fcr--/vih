@@ -92,6 +92,8 @@ openFile wtm str = do
             return wtmnew
 
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
-writeFile wtm mbstr = undefined
+writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c)) (loOp writeFileBM id wtm) 
+
+--loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
 -- vi: et sw=4

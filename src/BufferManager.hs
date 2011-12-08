@@ -106,3 +106,11 @@ openLineBM bm bn updown = case lookup bn (buffers bm) of
 			Nothing -> undefined -- TODO ..good luck
 	where
 		mp = buffers bm
+
+writeFileBM :: BManager -> Int -> Maybe String -> IO BManager
+writeFileBM bm bn mbstr = 
+                    case lookup bn mp of
+                        Just buff -> writeFile mbstr buff >>= \b -> return $ bm {buffers = insert bn b mp}
+                        Nothing -> undefined -- TODO ..good luck
+    where
+        mp = buffers bm
