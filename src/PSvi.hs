@@ -656,11 +656,19 @@ psOpRegsub st = ensureNArgs "regsub" 3 st $ case stack st of
         | otherwise = c : repl' cs res
     repl' "" _ = ""
 
-{-
 psOpSearch :: PSState -> IO (Either String PSState)
 psOpSearch st = ensureNArgs "search" 2 st $ case stack st of
+    (PSString n : PSString h : ss) -> return $ Right st {stack = res n h ++ ss}
     where
--}
+    matched n h = n `isInfixOf` h
+    split :: String -> String -> (String, String)
+    split n [] = ("", "")
+    split n h
+        | n `isPrefixOf` h = ("", drop (length n) h)
+        | otherwise = let (pr,po) = split n (tail h) in (head h : pr, po)
+    res n h
+        | matched n h  = let (pr,po) = split n h in [PSInt 1, PSString po, PSString n, PSString pr]
+        | otheriwse = [PSInt 0, PSString h]
 
 psOpCurrentdict :: PSState -> IO (Either String PSState)
 psOpCurrentdict st = return $ Right st {stack = PSMap dict : stack st}
