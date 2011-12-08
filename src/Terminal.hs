@@ -176,7 +176,7 @@ bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
 -- TODO: mirar...
 printNoWin w h |(w<1) || (h<1) = empty_image
-               | otherwise = (string def_attr s <|> char_fill def_attr '#' (w-length s) 1) <-> char_fill dum '-' w (h-1)
+               | otherwise = (string def_attr s <|> char_fill def_attr '#' (w-length s) 1) <-> char_fill dum '-' w (h-2)
                     where
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
