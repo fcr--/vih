@@ -2,7 +2,7 @@
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
 module Terminal where
-import BufferManager(BManager,newBM,newBuffer)
+import BufferManager(BManager,newBM,newBuffer,printWinBM)
 import Control.Concurrent.STM
 import Data.Map(Map,(!),singleton,keys,insert)
 import Graphics.Vty
@@ -189,13 +189,13 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
 
-printWTM wtm = {-printControl (lo wtm) <-> -} runReader (printLayout (lo wtm)) (bm wtm)
+printWTM wtm = runReader (printLayout (lo wtm)) (bm wtm)
 
 printControl lOut = string def_attr $show lOut
 printLayout :: Layout -> Reader BManager Image
 printLayout lOut = case lOut of
                         NoWin (x,y) -> return $ printNoWin x y
-                        (Window (x,y) num) -> return $ printWin x y
+                        (Window (x,y) num) -> asks (\bm-> printWinBM bm num (x,y))
                         (Hspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <|> barraVert y <|> b)) empty_image
                         (Vspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <-> barraHoriz x <-> b)) empty_image
     where barraVert y = char_fill cbarras '|' 1 y
