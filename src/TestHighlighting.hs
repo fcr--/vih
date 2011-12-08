@@ -9,6 +9,33 @@ import qualified Data.Map as M
 -- TODO : \" should not be considered for strings.
 
 
+str = unlines [
+  "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / . )*;",
+
+  "comment = \"--\" (!'\n'.)* / multicomment  ; ", 
+
+  "multicomment = \"{-\" (\"--\" / multicomment / !(\"-}\").)* \"-}\" ? ;",
+
+  "string =   (! \"\\\\\" ) '\"' (!'\"'.)* '\"' (! \"\\\\\" );",
+
+  "reserved  = '=' / '|' / \"..\" / \"::\" / '@' /  '~' / \"->\" / \"<-\" /  words;",
+
+  "words = \"case\" / \"class\" / \"data\" / \"default\" / \"deriving\" / \"do\"",
+  "      / \"mdo\" / \"else\" / \"forall\" / \"foreign\" / \"hiding\" / \"if\"",
+  "      / \"import\" / \"instance\" / \"infixl\" / \"infixr\" / \"infix\"",
+  "      / \"in\" / \"let\" / \"module\" / \"newtype\" / \"of\"",
+  "      / \"qualified\" / \"then\" / \"where\" / \"type\" ;",
+
+  "Cons = alphamay (alphamin / alphamay / num / \"'\"  / '_' / '#' / '.') *;",
+
+  "float = num+ ('.' num+)?;",
+
+  "plain = (alphamin / alphamay / num)+;",
+
+  "alphamin = 'a'..'z';",
+  "alphamay = 'A'..'Z';",
+  "num = '0'..'9';"]
+
 haskell = parseGrammar $ unlines [
   "all = (comment / string / reserved (' ' / '\n' / !.) / Cons / float / plain / . )*;",
 

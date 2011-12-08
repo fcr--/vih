@@ -121,7 +121,7 @@ openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = 
 
 -- equivalent to pressing J in normal mode of vim.
 joinLine :: Buffer -> Buffer
-joinLine buff | trace (show $ numLines buff) False = undefined
+-- joinLine buff | trace (show $ numLines buff) False = undefined
 joinLine buff	=	doIt (contents buff)
 	where
 		doIt	= \(prev, l@(BufferLine ls _), sig) -> case sig of
@@ -209,7 +209,10 @@ readGrammar s  = do
 			home <- getAppUserDataDirectory "vih"  -- = undefined
 			gram <- S.readFile ( joinPath [home ,(s ++ ".peg")] )
 			high <- S.readFile ( joinPath [home ,(s ++ ".attr")] )
-			return ( parseGrammar gram  , (\(Right x) -> x) $ pegMatch RH.reader high) -- TODO hopefully it will always be right!
+			case pegMatch RH.reader $ filter (/='\n') high of
+				Left s ->  return (emptyGrammar, M.empty)
+				Right x -> return ( parseGrammar gram  , x) 
+			-- TODO hopefully it will always be right!
 
 -- test
 
