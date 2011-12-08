@@ -3,6 +3,7 @@ import Terminal
 import Control.Monad.Reader
 import Control.Monad.State
 import BufferManager
+import Prelude hiding (readFile)
 -- Operaciones para navegar el archivo actual
 --
 {-
@@ -84,7 +85,13 @@ wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
 winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>= \cosa -> showWTM cosa >> return cosa) updown
-openFile = undefined
-writeFile = undefined
+-- openFile :: WTManager -> String -> IO WTManager
+openFile wtm str = do
+            wtmnew <- return $ wtm{bm = openFileBM (bm wtm)}
+            printloop wtmnew
+            return wtmnew
+
+-- writeFile :: WTManager -> Maybe String -> IO WTManager
+writeFile wtm mbstr = undefined
 
 -- vi: et sw=4
