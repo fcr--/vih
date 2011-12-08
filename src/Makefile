@@ -15,3 +15,7 @@ main:
 clean:
 	rm -f ptest*
 	rm -f *.hi *.o
+
+install:
+	mkdir ~/.vih/
+	cp *.peg *.attr ~/.vih/
