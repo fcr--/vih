@@ -219,7 +219,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
         ("getxsize", psOpGetxsize), ("getysize", psOpGetysize),
         ("winup", psOpWinup),       ("windown", psOpWindown),
-        ("openfile", psOpOpenfile), ("writefile", psOpWritefile)
+        ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
+        ("getkey", psOpGetkey),
         ]
 
 
@@ -723,14 +724,14 @@ psOpGetypos :: PSState -> IO (Either String PSState)
 psOpGetypos st = ensureWTM "getypos" st $ return $ Right st {stack = PSInt (getYpos$fromJust$wtm st) : stack st}
 
 psOpSetxpos :: PSState -> IO (Either String PSState)
-psOpSetxpos st = ensureNArgs "setxpos" 1 st $ case stack st of
+psOpSetxpos st = ensureWTM "setxpos" $ ensureNArgs "setxpos" 1 st $ case stack st of
     (PSInt pos : ss) -> do
         wtm' <- setXpos (fromJust (wtm st)) pos
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: setxpos: not an int on top of the stack"
 
 psOpSetypos :: PSState -> IO (Either String PSState)
-psOpSetypos st = ensureNArgs "setypos" 1 st $ case stack st of
+psOpSetypos st = ensureWTM "setypos" st $ ensureNArgs "setypos" 1 st $ case stack st of
     (PSInt pos : ss) -> do
         wtm' <- setYpos (fromJust (wtm st)) pos
         return $ Right st {stack = ss, wtm = Just wtm'}
@@ -750,21 +751,21 @@ psOpWindown st = ensureWTM "windown" st $ winDown (fromJust $ wtm st) >>= \w -> 
 
 -- 'o' True, 'O' False.
 psOpOpenline :: PSState -> IO (Either String PSState)
-psOpOpenline st = ensureNArgs "openline" 1 st $ case stack st of
+psOpOpenline st = ensureWTM "openline" st $ ensureNArgs "openline" 1 st $ case stack st of
     (PSInt after : ss) -> do
         wtm' <- openLine (after /= 0) (fromJust $ wtm st)
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openline: not an int on top of the stack"
 
 psOpOpenfile :: PSState -> IO (Either String PSState)
-psOpOpenfile st = ensureNArgs "openfile" 1 st $ case stack st of
+psOpOpenfile st = ensureWTM "openfile" st $ ensureNArgs "openfile" 1 st $ case stack st of
     (PSString filename : ss) -> do
         wtm' <- TI.openFile (fromJust $ wtm st) filename
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openfile: not a string on top of the stack"
 
 psOpWritefile :: PSState -> IO (Either String PSState)
-psOpWritefile st = ensureNArgs "writefile" 1 st $ case stack st of
+psOpWritefile st = ensureWTM "writefile" st $ ensureNArgs "writefile" 1 st $ case stack st of
     (PSList [PSString filename] : ss) -> do
         wtm' <- TI.writeFile (fromJust $ wtm st) (Just filename)
         return $ Right st {stack = ss, wtm = Just wtm'}
@@ -772,6 +773,37 @@ psOpWritefile st = ensureNArgs "writefile" 1 st $ case stack st of
         wtm' <- TI.writeFile (fromJust $ wtm st) Nothing
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openfile: an empty list or a list with the filename must be on top of the stack"
+
+psOpGetkey :: PSState -> IO (Either String PSString)
+psOpGetkey st = ensureWTM "getkey" st $ do
+        ev <- getKey
+        case ev of
+            EvKey key mods -> return $ Right st {stack = prm mods : PSList prk keys : stack st}
+            _ -> return $ Right st
+    where
+    prk KEsc = [PSString "KEsc"]
+    prk KFun n = [PSString "KFun", PSInt n]
+    prk KBackTab = [PSString "KBackTab"]
+    prk KPrtScr = [PSString "KPrtScr"]
+    prk KPause = [PSString "KPause"]
+    prk KASCII k = [PSString "KASCII", PSString k]
+    prk KBS = [PSString "KBS"]
+    prk KIns = [PSString "KIns"]
+    prk KHome = [PSString "KHome"]
+    prk KPageUp = [PSString "KPageUp"]
+    prk KDel = [PSString "KDel"]
+    prk KEnd = [PSString "KEnd"]
+    prk KPageDown = [PSString "KPageDown"]
+    prk KBegin = [PSString "KBegin"]
+    prk KNP5 = [PSString "KNP5"]
+    prk KUp = [PSString "KUp"]
+    prk KMenu = [PSString "KMenu"]
+    prk KLeft = [PSString "KLeft"]
+    prk KDown = [PSString "KDown"]
+    prk KRight = [PSString "KRight"]
+    prk KEnter = [PSString "KEnter"]
+    prm mods = (if elem MCtrl mods then [PSString "MCtrl"] else []) ++
+        (if elem MMeta mods then [PSString "MMeta"] else [])
 
 ------ MAIN LOOP ------
 
