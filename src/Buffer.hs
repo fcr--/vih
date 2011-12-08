@@ -219,7 +219,7 @@ readGrammar s  = do
 main :: IO ()
 main =	 do
 		vty <- mkVty
-		buffer <- Buffer.readFile "Buffer.hs"
+		buffer <- Buffer.readFile "Terminal.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
 		loop buffer vty
