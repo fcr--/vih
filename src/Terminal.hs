@@ -77,8 +77,8 @@ resizeLo :: Int -> Int -> Layout -> Layout
 resizeLo w h lo = case lo of
                     (Vspan px py xs) -> Vspan w h $(funcV w h xs)
                     (Hspan px py xs) -> Hspan w h $(funcH w h xs)
-                    Window (xs,ys) bn -> Window (w,h) bn
-                    NoWin (xs,ys) -> NoWin (w,h)
+                    Window _ bn -> Window (w,h) bn
+                    NoWin _ -> NoWin (w,h)
     where
         funcV w h lst = let (d,m) = divMod h (length lst) in map (\(l,lst) -> (resizeLo w (d+1) l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo w d l,d)) (drop m lst)
         funcH w h lst = let (d,m) = divMod w (length lst) in map (\(l,lst) -> (resizeLo (d+1) h l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo d h l,d)) (drop m lst)
