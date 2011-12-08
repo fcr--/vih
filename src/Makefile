@@ -1,5 +1,5 @@
 graphics:
-	ghc --make TestTerminal.hs
+	ghc --make PSvi.hs
 
 buffers:
 	ghc --make BufferManager.hs

@@ -97,7 +97,11 @@ showWTM wtm = let vty' = (vty wtm) in
 
 --Function to get the next event from the Vty
 getKey :: WTManager -> IO Event
-getKey wtm = next_event (vty wtm)
+getKey wtm = do nEv <- next_event (vty wtm)
+                case nEv of
+                  EvResize nx ny -> do printloop (resizeLayout nx ny wtm)
+                                       getKey wtm
+                  _ -> return nEv
 
 --Function to get a command from the command line
 getCommand :: WTManager -> IO (Maybe String)

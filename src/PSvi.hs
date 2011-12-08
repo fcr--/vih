@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module PSvi (main,psParse,
+module Main (main,psParse,
              PSObject(..),
              psNewState,
              psInterp,
