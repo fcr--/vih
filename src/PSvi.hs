@@ -610,10 +610,10 @@ psOpTail st = ensureNArgs "tail" 1 st $ case stack st of
 
 psOpGetinterval :: PSState -> IO (Either String PSState)
 psOpGetinterval st = ensureNArgs "getinterval" 3 st $ case stack st of
-    (PSInt c : PSInt i : PSString str : ss) -> return $ if i>=0 && c>0 && i<length str
+    (PSInt c : PSInt i : PSString str : ss) -> return $ if i>=0 && c>=0 && i<=length str
         then Right st {stack = PSString (take c $ drop i $ str) : ss}
         else Left "psInterp error: getinterval: index out of bounds"
-    (PSInt c : PSInt i : PSList list : ss) -> return $ if i>=0 && c>0 && i<length list
+    (PSInt c : PSInt i : PSList list : ss) -> return $ if i>=0 && c>=0 && i<=length list
         then Right st {stack = PSList (take c $ drop i $ list) : ss}
         else Left "psInterp error: getinterval: index out of bounds"
     _ -> return $ Left "psInterp error: get: type error (check documentation PSvi.txt)"
@@ -668,7 +668,7 @@ psOpSearch st = ensureNArgs "search" 2 st $ case stack st of
         | n `isPrefixOf` h = ("", drop (length n) h)
         | otherwise = let (pr,po) = split n (tail h) in (head h : pr, po)
     res n h
-        | matched n h  = let (pr,po) = split n h in [PSInt 1, PSString po, PSString n, PSString pr]
+        | matched n h  = let (pr,po) = split n h in [PSInt 1, PSString pr, PSString n, PSString po]
         | otherwise = [PSInt 0, PSString h]
 
 psOpCurrentdict :: PSState -> IO (Either String PSState)
@@ -830,6 +830,7 @@ main = do
     st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
     let st3 = case st2' of Left _ -> st2; Right s -> s
     st3'<- psExecFile st3 "run.ps"
+    case st3' of Left err -> putStrLn err; _ -> return ()
     let st4 = case st3' of Left _ -> st3; Right s -> s
     st4'<- psExecFile st4 "/etc/run.ps"
     let st5 = case st4' of Left _ -> st4; Right s -> s

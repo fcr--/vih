@@ -4,10 +4,43 @@ initwtm %getcommand
 
 /mode /normal def
 
-/keybindings <<
+/normalkeybindings <<
   {{"KASCII" ":"} {}} {
     getcommand
     {interpcommand} if
+  }
+  {{"KASCII" "$"} {}} {
+    % moverse al fin de línea
+    getypos getline length setxpos
+  }
+  {{"KASCII" "A"} {}} {
+    % mode insert al final de la línea
+    /mode /insert store % cambio modo insert
+    getypos getline length setxpos % voy al fin de línea
+  }
+  {{"KASCII" "a"} {}} {
+    % mode insert al final de la línea
+    /mode /insert store % cambio modo insert
+    getxpos 1 + setxpos
+  }
+  {{"KASCII" "h"} {}} {
+    % izquierda
+    getxpos 0 gt {getxpos 1 - setxpos} if
+  }
+  {{"KASCII" "j"} {}} {
+    % abajo
+    getypos getysize 1 - lt {getypos 1 + setypos} if
+  }
+  {{"KASCII" "k"} {}} {
+    % arriba
+    getypos 0 gt {getypos 1 - setypos} if
+  }
+  {{"KASCII" "l"} {}} {
+    % derecha
+    getxpos
+    getypos getline length lt % límite derecho es el largo...
+	mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
+      {getxpos 1 + setxpos} if
   }
 >> def
 
@@ -36,8 +69,35 @@ initwtm %getcommand
 {
   %exit % descomente para ir a terminal de postscript.
   [ getkey ]
-  dup keybindings exch known {
-    % si está en el diccionario lo ejecuta:
-    keybindings exch get exec
-  } if
+  % stack: [key mods]
+  mode /normal eq {
+    dup normalkeybindings exch known {
+      % si está en el diccionario lo ejecuta:
+      normalkeybindings exch get exec
+    } if
+  } {
+    mode /insert eq {
+      dup 0 get 0 get % stack: [key mods]
+      "KASCII" eq {
+	begin
+	  dup 0 get 1 get % stack: [key mods] char
+	  /char exch def
+	  /line getypos getline def
+	  /len line length def
+	  /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+	  getypos
+	  line 0 x getinterval
+	  char +
+	  line x  len x -  getinterval + % concat from x, len-x chars.
+	  setline
+	end
+	% stack: [key mods] key
+      } if
+      dup 0 get 0 get "KEsc" eq {
+	/mode /normal store
+      } if
+      % stack: [key mods]
+    } if
+    pop
+  } ifelse % mode /normal eq
 } loop
