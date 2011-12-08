@@ -31,7 +31,8 @@ initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
     (DisplayRegion w h) <- display_bounds (terminal v)
-    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "", vty = v} ) >>= \wtm -> return (resizeLayout (fromIntegral w) (fromIntegral h) wtm)
+    let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "", vty = v}
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
