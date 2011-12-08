@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module PSvi (main,psParse,
+module Main (main,psParse,
              PSObject(..),
              psNewState,
              psInterp,
@@ -11,6 +11,7 @@ import Terminal
 import TerminalInterfaces as TI
 import Peg.Peg
 import Data.Char
+import Data.List
 import Data.Maybe(isNothing, fromJust)
 import Control.Applicative
 import Control.Concurrent.STM
@@ -23,8 +24,7 @@ import System.Exit(exitSuccess, exitFailure)
 import qualified Data.Map as M
 import qualified Data.Bits as B
 import qualified Text.Regex.PCRE.String as PCRE
-
-import qualified Graphics.Vty (shutdown)
+import Graphics.Vty hiding ((<|>))
 
 data PSObject = PSString !String
               | PSInt !Int
@@ -71,10 +71,12 @@ instance Ord PSObject where
 
 -- ps = blanks (atom blanks)*
 grm_ps :: PegGrammar PSObject
-grm_ps = PegAster PSList (
-    PegCat head [
-        grm_atom,
-        grm_blanks undefined])
+grm_ps = PegCat last [
+    grm_blanks undefined,
+    PegAster PSList (
+        PegCat head [
+            grm_atom,
+            grm_blanks undefined])]
 
 -- string = '"' ('\\' . / !('\\' / '"') .)* '"';
 grm_string :: PegGrammar PSObject
@@ -104,9 +106,7 @@ grm_blanks k = PegAster (const k) (
         PegTerm undefined (isSpace . head),
         PegCat undefined [
             PegEqToken undefined "%",
-            PegAster undefined (PegCat undefined [
-                PegNegLA undefined (PegEqToken undefined "\n"),
-                PegTerm undefined (const True)]),
+            PegAster undefined (PegTerm undefined ("\n" /=)),
             PegAlt undefined [
                 PegEqToken undefined "\n",
                 PegNegLA undefined (PegTerm undefined (const True))]]])
@@ -220,7 +220,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("getxsize", psOpGetxsize), ("getysize", psOpGetysize),
         ("winup", psOpWinup),       ("windown", psOpWindown),
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
-        ("getkey", psOpGetkey),
+        ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand)
         ]
 
 
@@ -266,8 +266,8 @@ psExecFile :: PSState -> FilePath -> IO (Either String PSState)
 psExecFile st filename = do
     text <- catch (readFile filename) (const $ return "")
     case psParse text of
-        Left msg -> error text
         Right obj -> psExec st obj
+        Left msg -> error msg
 
 
 ensureNArgs :: String -> Int -> PSState -> IO (Either String PSState) -> IO (Either String PSState)
@@ -669,7 +669,7 @@ psOpSearch st = ensureNArgs "search" 2 st $ case stack st of
         | otherwise = let (pr,po) = split n (tail h) in (head h : pr, po)
     res n h
         | matched n h  = let (pr,po) = split n h in [PSInt 1, PSString po, PSString n, PSString pr]
-        | otheriwse = [PSInt 0, PSString h]
+        | otherwise = [PSInt 0, PSString h]
 
 psOpCurrentdict :: PSState -> IO (Either String PSState)
 psOpCurrentdict st = return $ Right st {stack = PSMap dict : stack st}
@@ -724,9 +724,9 @@ psOpGetypos :: PSState -> IO (Either String PSState)
 psOpGetypos st = ensureWTM "getypos" st $ return $ Right st {stack = PSInt (getYpos$fromJust$wtm st) : stack st}
 
 psOpSetxpos :: PSState -> IO (Either String PSState)
-psOpSetxpos st = ensureWTM "setxpos" $ ensureNArgs "setxpos" 1 st $ case stack st of
+psOpSetxpos st = ensureWTM "setxpos" st $ ensureNArgs "setxpos" 1 st $ case stack st of
     (PSInt pos : ss) -> do
-        wtm' <- setXpos (fromJust (wtm st)) pos
+        wtm' <- setXpos (fromJust $ wtm st) pos
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: setxpos: not an int on top of the stack"
 
@@ -774,19 +774,19 @@ psOpWritefile st = ensureWTM "writefile" st $ ensureNArgs "writefile" 1 st $ cas
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openfile: an empty list or a list with the filename must be on top of the stack"
 
-psOpGetkey :: PSState -> IO (Either String PSString)
+psOpGetkey :: PSState -> IO (Either String PSState)
 psOpGetkey st = ensureWTM "getkey" st $ do
-        ev <- getKey
+        ev <- getKey $ fromJust $ wtm st
         case ev of
-            EvKey key mods -> return $ Right st {stack = prm mods : PSList prk keys : stack st}
+            EvKey key mods -> return $ Right st {stack = PSList (prm mods) : PSList (prk key) : stack st}
             _ -> return $ Right st
     where
     prk KEsc = [PSString "KEsc"]
-    prk KFun n = [PSString "KFun", PSInt n]
+    prk (KFun n) = [PSString "KFun", PSInt n]
     prk KBackTab = [PSString "KBackTab"]
     prk KPrtScr = [PSString "KPrtScr"]
     prk KPause = [PSString "KPause"]
-    prk KASCII k = [PSString "KASCII", PSString k]
+    prk (KASCII k) = [PSString "KASCII", PSString [k]]
     prk KBS = [PSString "KBS"]
     prk KIns = [PSString "KIns"]
     prk KHome = [PSString "KHome"]
@@ -805,6 +805,13 @@ psOpGetkey st = ensureWTM "getkey" st $ do
     prm mods = (if elem MCtrl mods then [PSString "MCtrl"] else []) ++
         (if elem MMeta mods then [PSString "MMeta"] else [])
 
+psOpGetcommand :: PSState -> IO (Either String PSState)
+psOpGetcommand st = ensureWTM "getcommand" st $ do
+        res <- getCommand $ fromJust $ wtm st
+        case res of
+            Just str -> return $ Right st {stack = PSInt 1 : PSString str : stack st}
+            Nothing -> return $ Right st {stack = PSInt 0 : stack st}
+
 ------ MAIN LOOP ------
 
 main = do
@@ -816,25 +823,30 @@ main = do
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
     home <- getAppUserDataDirectory "vih"
 
-    psExecFile st "init.ps"
-    psExecFile st "/etc/init.ps"
-    psExecFile st $ joinPath [home, "init.ps"]
-    psExecFile st "run.ps"
-    psExecFile st "/etc/run.ps"
-    when (not $ isNothing $ wtm st) (Graphics.Vty.shutdown $ vty $ fromJust $ wtm st)
-    terminal st
+    st' <- psExecFile st "init.ps"
+    let st1 = case st' of Left _ -> st; Right s -> s
+    st1'<- psExecFile st1 "/etc/init.ps"
+    let st2 = case st1' of Left _ -> st1; Right s -> s
+    st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
+    let st3 = case st2' of Left _ -> st2; Right s -> s
+    st3'<- psExecFile st3 "run.ps"
+    let st4 = case st3' of Left _ -> st3; Right s -> s
+    st4'<- psExecFile st4 "/etc/run.ps"
+    let st5 = case st4' of Left _ -> st4; Right s -> s
+    when (not $ isNothing $ wtm st5) (shutdown $ vty $ fromJust $ wtm st5)
+    term st5
 
-terminal :: PSState -> IO a
-terminal s = do
+term :: PSState -> IO a
+term s = do
         putStr ((show $ length $ stack s) ++ "> ")
         hFlush stdout
         eof <- hIsEOF stdin
         when eof exitSuccess
         line <- SIO.getLine
         case psParse line of
-            Left m -> putStrLn m >> terminal s
+            Left m -> putStrLn m >> term s
             Right c -> psExec s c >>= \r -> case r of
-                Left m -> putStrLn m >> terminal s
-                Right s' -> print s' >> terminal s'
+                Left m -> putStrLn m >> term s
+                Right s' -> print s' >> term s'
 
 -- vi: et sw=4

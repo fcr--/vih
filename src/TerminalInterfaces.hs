@@ -90,6 +90,7 @@ openFile wtm str = do nbm <- bmOp ((\a b c -> openFileBM b c a) str) wtm
                       wtmnew <- return $ wtm{bm = nbm}
                       showWTM wtmnew
                       return wtmnew
+    where openFileBM = error "FIXME!!!"
 
 -- To move left/up/down/right
 data Pos = L | U | D | R deriving(Eq)
