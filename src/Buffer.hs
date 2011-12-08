@@ -19,7 +19,8 @@ data Buffer = Buffer {
 	curPos	 :: Int, -- position of the cursor within the line curLine
 	numLines :: Int,
 	grammar  :: Defs,
-	colors   :: M.Map String RH.Attr
+	colors   :: M.Map String RH.Attr,
+	file	 :: Maybe FilePath -- file associated with the buffer
 	} 
 
 -- highlighting with memoization
@@ -47,14 +48,15 @@ readFile fn = do
 		let buff = (load . noNull . lines) $ concat $ map (\s -> if s=='\t' then take 8 (repeat ' ') else [s] ) $ file -- TODO : TABS TO 8 spaces
 		let b1 = buff { grammar = df, colors = mp }
 		let (p,c,s) = contents b1
-		return $ buff {contents = (map (func b1) p, (func b1) c, map (func b1) s) } -- colors! ;D
+--		associate the buffer with the file.
+		return $ buff {contents = (map (func b1) p, (func b1) c, map (func b1) s) , file = Just fn } -- colors! ;D
   where
   func b1 = (\(BufferLine s _) -> loadLine b1 s)
   noNull ls = if null ls then [""] else ls
   ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing }
     where
     lines = map (\s -> BufferLine s []) ls -- no colors yet, wait for the file extension
 
@@ -63,22 +65,24 @@ emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty} in ans
+newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing} in ans
 
 -- writeFile :: FilePath -> IO Buffer
-writeFile :: Maybe (FilePath) -> Buffer -> IO Buffer
-writeFile fp buf = undefined
+writeFile :: Maybe FilePath -> Buffer -> IO Buffer
+writeFile Nothing buf = case file buf of
+				Nothing -> return buf -- failed
+				Just file -> writeFile' file buf
 
-{-
-do
+writeFile (Just file) buf = writeFile' file buf
+
+writeFile' fp buf = do
 			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
 			catch (S.writeFile fp (txt buf)) (const $ return ()) 
-			return $ buf { grammar = df, colors = mp}
-
+			return $ buf { grammar = df, colors = mp, file = Just fp} -- associate the buffer with the file.
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
        ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fp
--}
+
 
 firstLine :: Buffer -> Buffer
 firstLine buff
