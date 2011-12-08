@@ -26,6 +26,8 @@ newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
 newBuffer bm Nothing	=	let bm' = insBuffer bm B.newBuf in return (bm', maxbuffer bm' - 1)
 newBuffer bm (Just fp)	=	(>>=) (Buffer.readFile fp) $  \b -> let bm' = insBuffer bm b in return (bm', maxbuffer bm' - 1)
 
+openFileBM :: BManager -> Int -> String -> IO BManager
+openFileBM bm bn fname = Buffer.readFile fname >>= \nb -> return $ bm{ buffers = insert bn nb (buffers bm)}
 
 -- internal function
 insBuffer :: BManager -> B.Buffer -> BManager

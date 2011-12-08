@@ -84,13 +84,46 @@ winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>= \cosa -> showWTM cosa >> return cosa) updown
 
+-- bmOp :: (BManager->Int->a)->WTManager->a
 -- openFile :: WTManager -> String -> IO WTManager
-openFile wtm str = do wtmnew <- return $ wtm{bm = openFileBM (bm wtm)}
-                      printloop wtmnew
+openFile wtm str = do nbm <- bmOp ((\a b c -> openFileBM b c a) str) wtm
+                      wtmnew <- return $ wtm{bm = nbm}
+                      showWTM wtmnew
                       return wtmnew
 
+-- To move left/up/down/right
+data Pos = L | U | D | R deriving(Eq)
+horiz :: Pos -> Bool
+horiz x = case x of
+    L -> True
+    R -> True
+    _ -> False
+verti :: Pos -> Bool
+verti = not.horiz
+navLev :: Pos -> Bool
+navLev x = case x of
+    L -> True
+    U -> True
+    _ -> False
+-- navigate position Pos with starting position Int in an array of size Int (2) and 
+navigatePos :: Pos -> Int -> Int -> Int
+navigatePos pos toNav lenPlace | toNav == 0 && navLev pos == True = 0
+                               | toNav == (lenPlace-1) && not (navLev pos) == False = lenPlace -1
+                               | otherwise = (if navLev pos then -1 else 1) + toNav
+
+winMove :: WTManager -> Pos -> IO WTManager
+winMove wtm pos = let (xs,_) = _loMove (lo wtm) (curwdw wtm) pos in
+                    do
+                        newWTM <- return (wtm{curwdw = xs})
+                        showWTM newWTM
+                        return newWTM
+_loMove :: Layout -> [Int] -> Pos -> ([Int],Bool)
+_loMove lo (x:xs) pos = case lo of
+            (Window _ _) -> (xs,False)
+            (Hspan a b lst) -> let ((cab:cola),stuff) = _loMove (fst (lst!!x)) xs pos in if stuff then (x:cab:cola,True) else if not (horiz pos) then (x:xs,False) else (x:repeat 0,True)
+            (Vspan a b lst) -> let ((cab:cola),stuff) = _loMove (fst (lst!!x)) xs pos in if stuff then (x:cab:cola,True) else if not (verti pos) then (x:xs,False) else (x:repeat 0,True)
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
-writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c}) (loOp writeFileBM id wtm))
+writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (loOp writeFileBM id wtm)
 
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
