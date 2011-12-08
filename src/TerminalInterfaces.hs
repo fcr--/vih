@@ -88,9 +88,11 @@ openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boo
 openFile wtm str = do wtmnew <- return $ wtm{bm = openFileBM (bm wtm)}
                       printloop wtmnew
                       return wtmnew
+    where openFileBM = error "FIXME!!!"
 
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
-writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c}) (loOp writeFileBM id wtm))
+--writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c}) (loOp writeFileBM id wtm))
+writeFile = undefined
 
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
