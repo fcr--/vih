@@ -30,6 +30,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
 initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
+    show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
     let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "", vty = v}
     return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
@@ -93,7 +94,9 @@ getW (DisplayRegion w h) = w
 
 --Function to print the vty contained in the wtm
 showWTM :: WTManager -> IO ()
-showWTM wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
+showWTM wtm = do
+  update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
+  show_cursor $ terminal $ vty wtm
 
 --Function to get the next event from the Vty
 getKey :: WTManager -> IO Event
@@ -112,8 +115,11 @@ getCommand wtm = let vty' = (vty wtm) in
 
 --Function that asks continully for the next character of the command until it ends and return the string that composes it
 getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (Maybe String)
-getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
-                           case nEv of
+getCommand' cl wtm w h= do
+    set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
+    show_cursor (terminal $ vty wtm)
+    nEv <- next_event (vty wtm)
+    case nEv of
                              EvKey (KASCII c) _ -> let newCL = addCharComm cl c
                                                    in do updateVtyCommand wtm (comm newCL) w h
                                                          getCommand' newCL wtm w h
@@ -126,7 +132,7 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                in do updateVtyCommand wtm (comm newCL) w h
                                                      getCommand' newCL wtm w h
                              EvKey (KLeft) _ -> let cur = pos cl
-                                                in if cur == 0
+                                                in if cur <= 1
                                                    then getCommand' cl wtm w h
                                                    else getCommand' (cl {pos = cur - 1}) wtm w h
                              EvKey (KRight) _ -> let cur = pos cl
@@ -153,12 +159,12 @@ addCharComm cl c = let (a,b) = splitAt (pos cl) (comm cl)
 suprComm :: CommandLine -> CommandLine
 suprComm cl = let (a,b) = splitAt (pos cl) (comm cl)
                   i = pos cl
-              in cl {comm = (init a)++b, pos = i -1}
+              in if i <= 1 then cl else cl {comm = (init a)++b, pos = i -1}
 
 --Function that deletes a charcter at the current position in the command line (Forward delete)
 delComm :: CommandLine -> CommandLine
 delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
-             in cl {comm = a++(tail b)}
+             in cl {comm = a++(drop 1 b)}
 
 --Function that paints an empty window
 armarIm w h  wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"

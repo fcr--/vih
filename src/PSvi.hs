@@ -823,13 +823,18 @@ main = do
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
     home <- getAppUserDataDirectory "vih"
 
-    psExecFile st "init.ps"
-    psExecFile st "/etc/init.ps"
-    psExecFile st $ joinPath [home, "init.ps"]
-    psExecFile st "run.ps"
-    psExecFile st "/etc/run.ps"
-    when (not $ isNothing $ wtm st) (shutdown $ vty $ fromJust $ wtm st)
-    term st
+    st' <- psExecFile st "init.ps"
+    let st1 = case st' of Left _ -> st; Right s -> s
+    st1'<- psExecFile st1 "/etc/init.ps"
+    let st2 = case st1' of Left _ -> st1; Right s -> s
+    st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
+    let st3 = case st2' of Left _ -> st2; Right s -> s
+    st3'<- psExecFile st3 "run.ps"
+    let st4 = case st3' of Left _ -> st3; Right s -> s
+    st4'<- psExecFile st4 "/etc/run.ps"
+    let st5 = case st4' of Left _ -> st4; Right s -> s
+    when (not $ isNothing $ wtm st5) (shutdown $ vty $ fromJust $ wtm st5)
+    term st5
 
 term :: PSState -> IO a
 term s = do
