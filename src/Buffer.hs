@@ -164,6 +164,18 @@ highlight :: Buffer -> ([[Image]],[Image],[[Image]])
 -- we are not re-computing the highlighting here, just extracting the memoized value.
 highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 
+-- TODO: FINISH THIS FUNCTION... 
+printBuff :: Buffer -> (Int,Int) -> Image
+printBuff buf (x,y) = undefined
+{- let (lup,resto) = divMod (y-1) 2
+			  (pre,line,post) = highlight buf
+			  (pr',li',po') = (take lup pre, line ++ (take (x-length line) ++ take (repeat [char def_attr ' ']),take (lup+resto) post)
+			  (pr'',li'',po'') = (map horiz_cat (map take x pr'),map horiz_cat ( map (take x) li'),map horiz_cat (li', ( map (take x) po'))
+			  in = vert_cat [vert_cat (reverse pr''),li'',vert_cat po''] 
+			  \(pre,line,post)-> (take lup (reverse pre))++) ((\f (plp) (take y) (highlight buf))
+
+dummyLine w = char def_attr '' w
+-}
 highlight' :: Buffer -> String -> [Image]
 highlight' buff s	=	map f $ (\(Right x) -> x) $ pegMatch (gram M.! "all") s
 	where

@@ -4,6 +4,7 @@ import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty,delete,member)
 import Data.Maybe(fromJust)
 import qualified Buffer as Buffer
 import System.IO
+import Graphics.Vty(Image)
 import Prelude hiding (lookup)
 ------ the datatype of buffer controllers ------ 
 data BManager = BManager { 
@@ -108,6 +109,11 @@ openLineBM bm bn updown = case lookup bn (buffers bm) of
 			Nothing -> undefined -- TODO ..good luck
 	where
 		mp = buffers bm
+
+printWinBM :: BManager -> Int -> (Int,Int) -> Image
+printWinBM bm bn pos = case lookup bn (buffers bm) of 
+			Just buff -> Buffer.printBuff buff pos
+			Nothing -> undefined -- TODO ..good goddamn luck!
 
 writeFileBM :: BManager -> Int -> Maybe String -> IO BManager
 writeFileBM bm bn mbstr = 
