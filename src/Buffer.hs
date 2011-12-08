@@ -49,7 +49,7 @@ readFile fn = do
 		let b1 = buff { grammar = df, colors = mp }
 		let (p,c,s) = contents b1
 --		associate the buffer with the file.
-		return $ buff {contents = (map (func b1) p, (func b1) c, map (func b1) s) , file = Just fn } -- colors! ;D
+		return $ b1 {contents = (map (func b1) p, (func b1) c, map (func b1) s) , file = Just fn } -- colors! ;D
   where
   func b1 = (\(BufferLine s _) -> loadLine b1 s)
   noNull ls = if null ls then [""] else ls
