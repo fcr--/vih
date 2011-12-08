@@ -6,9 +6,8 @@ import BufferManager
 import Graphics.Vty
 
 main :: IO ()
-main = mkVty >>= \vty ->
-       let wtm = initWTM newBM vty in
-       do showWTM wtm
+main = do wtm <- initWTM
+          showWTM wtm
           ev <- getKey wtm
           case ev of
             EvKey (KASCII 'q') [] -> return ()
@@ -17,4 +16,4 @@ main = mkVty >>= \vty ->
                                       --  print $ (fromJust com)-- TODO: Get actually doing something
             EvResize nx ny -> showWTM wtm
             _ -> showWTM wtm
-          shutdown vty
+          shutdown (vty wtm)
