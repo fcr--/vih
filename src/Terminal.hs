@@ -169,15 +169,10 @@ printloop wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW
 armarIm w h  wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
                       <->(printWTM wtm)
+                      <->string def_attr (stLine wtm)
                       <->bordeInferior w
 
---Function that paints a window with an specific status line
-armarImSt w h stl wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                        else bordeSuperior w
-                             <->(printWTM wtm)
-                             <->string def_attr stl
-                             <->bordeInferior w
-
+--Function that sets the string holding in the status line
 setSt stl wtm = wtm {stLine = stl}
 
 --Function that paints the command line with the accumulative string given
