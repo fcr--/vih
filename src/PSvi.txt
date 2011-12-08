@@ -224,6 +224,16 @@ Operators (sorted by name):
     (0 based) of at most count elements. If the first argument is a string
     then a substring is returned.
 
+  getkey:	- getkey listkey listmods
+
+    Waits for a keypress and in the first list it returns a list with the
+    key name or key kind, and in the second list it returns a list of the
+    modifiers names.
+
+    For instance the first list may be: {"KEsc"}, {"KFun" 5}, {"KASCII" "j"},
+    etc... and the seconds list may have one or both of the strings: "MCtrl",
+    "MMeta" in it, and in that order.
+
   globaldict:	- globaldict dict
 
     Pushes back the global dictionary.
@@ -333,8 +343,8 @@ Operators (sorted by name):
     Example: 1 2 3 4 5 6 7  5 2 roll          =>   1 2 6 7 3 4 5
     Example: "a" "b" "c" "d"  3 -1 roll pop   =>   "a" "c" "d"
 
-  (TODO) search:	haystack needle search post match pre 1  (if found)
-				       string 0          (otherwise)
+  search:	haystack needle search post match pre 1  (if found)
+				       haystack 0          (otherwise)
 
     Looks for the first occurrence of the string needle in the string haystack,
     and returns the result from the search. If the search is successfull, the
