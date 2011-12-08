@@ -1,3 +1,5 @@
+all:: main
+
 graphics:
 	ghc --make TestTerminal.hs
 
@@ -7,5 +9,9 @@ buffers:
 testBuffers:
 	ghc --make TestBufferManager.hs -o .ptestBuffer
 
+main:
+	ghc --make PSvi.hs -o vih
+
 clean:
 	rm -f ptest*
+	rm -f *.hi *.o
