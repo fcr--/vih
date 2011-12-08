@@ -11,6 +11,8 @@ import System.FilePath(joinPath)
 import qualified ReadHighlighting as RH
 import Data.Monoid
 
+-- TODO : TABS!!!!
+
 data Buffer = Buffer {
 	contents :: ([BufferLine], BufferLine, [BufferLine]),
 	curLine  :: Int,
@@ -42,7 +44,7 @@ readFile :: FilePath -> IO Buffer
 readFile fn = do
 		(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) ) 
 		file <- catch (S.readFile fn) (const $ return "")
-		let buff = (load . noNull . lines) file
+		let buff = (load . noNull . lines) $ concat $ map (\s -> if s=='\t' then take 8 (repeat ' ') else [s] ) $ file -- TODO : TABS TO 8 spaces
 		let b1 = buff { grammar = df, colors = mp }
 		let (p,c,s) = contents b1
 		return $ buff {contents = (map (func b1) p, (func b1) c, map (func b1) s) } -- colors! ;D
@@ -219,7 +221,7 @@ readGrammar s  = do
 main :: IO ()
 main =	 do
 		vty <- mkVty
-		buffer <- Buffer.readFile "Terminal.hs"
+		buffer <- Buffer.readFile "BufferManager.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
 		loop buffer vty
