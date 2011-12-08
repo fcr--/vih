@@ -90,7 +90,7 @@ openFile wtm str = do wtmnew <- return $ wtm{bm = openFileBM (bm wtm)}
                       return wtmnew
 
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
-writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c}) (loOp writeFileBM id wtm) 
+writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c}) (loOp writeFileBM id wtm))
 
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
