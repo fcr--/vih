@@ -66,14 +66,19 @@ newBuf :: Buffer
 newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty} in ans
 
 -- writeFile :: FilePath -> IO Buffer
-writeFile :: FilePath -> Buffer -> IO Buffer
-writeFile fp buf = do
+writeFile :: Maybe (FilePath) -> Buffer -> IO Buffer
+writeFile fp buf = undefined
+
+{-
+do
 			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
 			catch (S.writeFile fp (txt buf)) (const $ return ()) 
 			return $ buf { grammar = df, colors = mp}
+
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
        ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fp
+-}
 
 firstLine :: Buffer -> Buffer
 firstLine buff
@@ -215,6 +220,7 @@ readGrammar s  = do
 				Left s ->  return (emptyGrammar, M.empty)
 				Right x -> return ( parseGrammar gram  , x) 
 			-- TODO hopefully it will always be right!
+
 
 -- test
 
