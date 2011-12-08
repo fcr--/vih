@@ -92,15 +92,13 @@ getW (DisplayRegion w h) = w
 
 --Function to print the vty contained in the wtm
 showWTM :: WTManager -> IO ()
-showWTM wtm = let vty' = (vty wtm) in
-              do bnds <- display_bounds (terminal vty')
-                 printloop wtm 
+showWTM wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
 
 --Function to get the next event from the Vty
 getKey :: WTManager -> IO Event
 getKey wtm = do nEv <- next_event (vty wtm)
                 case nEv of
-                  EvResize nx ny -> do printloop (resizeLayout nx ny wtm)
+                  EvResize nx ny -> do showWTM (resizeLayout nx ny wtm)
                                        getKey wtm
                   _ -> return nEv
 
@@ -134,9 +132,9 @@ getCommand' cl wtm w h= do nEv <- next_event (vty wtm)
                                                  in if cur == length (comm cl)
                                                     then getCommand' cl wtm w h
                                                     else getCommand' (cl {pos = cur + 1}) wtm w h 
-                             EvKey (KEsc) _ -> do printloop wtm
+                             EvKey (KEsc) _ -> do showWTM wtm
                                                   return Nothing
-                             EvResize nx ny -> do printloop (resizeLayout nx ny wtm)
+                             EvResize nx ny -> do showWTM (resizeLayout nx ny wtm)
                                                   getCommand' cl wtm w h
                              _ -> getCommand' cl wtm w h
 
@@ -160,10 +158,6 @@ suprComm cl = let (a,b) = splitAt (pos cl) (comm cl)
 delComm :: CommandLine -> CommandLine
 delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
              in cl {comm = a++(tail b)}
-                      
---Function that given a vty prints it on the screen
-printloop :: WTManager -> IO ()
-printloop wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
 
 --Function that paints an empty window
 armarIm w h  wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
@@ -178,9 +172,7 @@ setSt stl wtm = wtm {stLine = stl}
 --Function that paints the command line with the accumulative string given
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                          else (printWTM wtm) <-> string def_attr s
-                       
-
-                    
+                          
 bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
 -- TODO: mirar...
@@ -190,19 +182,14 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
 
-printWTM :: WTManager -> Image
-printWTM wtm = {-printControl (lo wtm) <-> -} runReader (printLayout (lo wtm)) (bm wtm)
+printWTM wtm = {-printControl (lo wtm) <-> -} printLayout (lo wtm)
 
-printWindowBM :: BManager -> Int -> (Int,Int) -> Image
-printWindowBM = undefined
 printControl lOut = string def_attr $show lOut
-printLayout :: Layout -> Reader BManager Image 
 printLayout lOut = case lOut of
-                        (Window (x,y) num) -> asks (\bm-> printWindowBM bm num (x,y))
-                        (Hspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return ( a <|> barraVert y <|> b)) empty_image
-                            -- foldr1 (\a b -> a <|> barraVert y <|> b)  $ map (\(lo,h)->printLayout lo) xsL
-                        (Vspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <|> barraVert y <|> b)) empty_image
-                            --foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y)->printLayout lo) xsL
+                        NoWin (x,y) -> printNoWin x y
+                        (Window (x,y) num) -> printWin x y
+                        (Hspan x y xsL) -> foldr1 (\a b -> a <|> barraVert y <|> b)  $ map (\(lo,h)->printLayout lo) xsL
+                        (Vspan x y xsL) -> foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y)->printLayout lo) xsL
     where barraVert y = char_fill cbarras '|' 1 y
           barraHoriz x = char_fill cbarras '-' x 1
 
@@ -215,7 +202,7 @@ newWin horiz wtm = do
                 (DisplayRegion w h) <- display_bounds (terminal $vty wtm)
                 newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) (curwdw wtm)}
                 lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
-                printloop (lWTM)
+                showWTM lWTM
                 return lWTM
 
 --Asociar buffer a ventana
