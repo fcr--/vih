@@ -1,0 +1,43 @@
+initwtm %getcommand
+
+%%%%%% DEFAULT KEYBINDINGS %%%%%%
+
+/mode /normal def
+
+/keybindings <<
+  {{"KASCII" ":"} {}} {
+    getcommand
+    {interpcommand} if
+  }
+>> def
+
+/interpcommand {
+  [] exch " " search {
+    % caso true, queda en stack: post match pre
+    exch pop exch % stack: pre post
+    [ exch ] % stack: [] pre [post]
+    3 2 roll % stack: pre [post] []
+    exch +   % stack: pre [post]
+    exch     % stack: [post] pre
+  } if
+  % stacks ejemplo: {} ":q", {"archivo"} ":w"
+  <<
+    ":q" {quit}
+  >> exch
+  2 copy known {
+    get exec % está presente, utilizo los 2 originales en get
+  } {
+    pop pop pop % descartamos los 2 originales recién copiados y param extra.
+  } ifelse
+} def
+
+%%%%%% MAIN LOOP %%%%%%:
+
+{
+  %exit % descomente para ir a terminal de postscript.
+  [ getkey ]
+  dup keybindings exch known {
+    % si está en el diccionario lo ejecuta:
+    keybindings exch get exec
+  } if
+} loop
