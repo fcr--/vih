@@ -20,6 +20,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,wtmH :: Int -- height in characters of window
                       ,wtmW :: Int -- width in characters of window
                       ,bm :: BManager
+                      ,stLine :: String
                       ,vty :: Vty
                       }
 
@@ -30,7 +31,7 @@ initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
     (DisplayRegion w h) <- display_bounds (terminal v)
-    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, vty = v} ) >>= \wtm -> return (resizeLayout (fromIntegral w) (fromIntegral h) wtm)
+    return ( WTMa {lo = Window (undefined, undefined) 0,curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "", vty = v} ) >>= \wtm -> return (resizeLayout (fromIntegral w) (fromIntegral h) wtm)
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -165,10 +166,19 @@ printloop :: WTManager -> IO ()
 printloop wtm = do update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
 
 --Function that paints an empty window
-armarIm w h wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+armarIm w h  wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
                       <->(printWTM wtm)
                       <->bordeInferior w
+
+--Function that paints a window with an specific status line
+armarImSt w h stl wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+                        else bordeSuperior w
+                             <->(printWTM wtm)
+                             <->string def_attr stl
+                             <->bordeInferior w
+
+setSt stl wtm = wtm {stLine = stl}
 
 --Function that paints the command line with the accumulative string given
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
