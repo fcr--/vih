@@ -189,14 +189,15 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
 
-printWTM wtm = {-printControl (lo wtm) <-> -} printLayout (lo wtm)
+printWTM wtm = {-printControl (lo wtm) <-> -} runReader (printLayout (lo wtm)) (bm wtm)
 
 printControl lOut = string def_attr $show lOut
+printLayout :: Layout -> Reader BManager Image
 printLayout lOut = case lOut of
-                        NoWin (x,y) -> printNoWin x y
-                        (Window (x,y) num) -> printWin x y
-                        (Hspan x y xsL) -> foldr1 (\a b -> a <|> barraVert y <|> b)  $ map (\(lo,h)->printLayout lo) xsL
-                        (Vspan x y xsL) -> foldr1 (\a b -> a <-> barraHoriz x <-> b) $ map (\(lo,y)->printLayout lo) xsL
+                        NoWin (x,y) -> return $ printNoWin x y
+                        (Window (x,y) num) -> return $ printWin x y
+                        (Hspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <|> barraVert y <|> b)) empty_image
+                        (Vspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <-> barraHoriz x <-> b)) empty_image
     where barraVert y = char_fill cbarras '|' 1 y
           barraHoriz x = char_fill cbarras '-' x 1
 
