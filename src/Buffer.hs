@@ -263,18 +263,21 @@ main =	 do
 		buffer <- Buffer.readFile "BufferManager.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
-		loop buffer vty
+		loop buffer vty 15
 		shutdown vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
 
-loop buffer vty = do
+loop buffer vty wp = do
 			nextEV <- next_event vty
 			case nextEV of
 				EvKey ( KASCII 'q' ) []  -> return()
-				EvKey ( KASCII 'a' ) []  -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l1)) ++ [c1] ++ (take 15 r1) ) >> loop bu vty
-				EvKey ( KASCII 'j' ) [] -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 lj)) ++ [cj] ++ (take 15 rj) ) >> loop bj vty
-				_ -> ( update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ (reverse (take 15 l)) ++ [c] ++ (take 15 r) ) >> loop bd vty
+				EvKey ( KASCII 'a' ) []  -> case printBuff bu wp (80,24) of
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
+				EvKey ( KASCII 'j' ) [] -> case printBuff bj wp (80,24) of
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
+				_ -> case printBuff bd wp (80,24) of
+					(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
 		(l,c,r) = Buffer.highlight bd
