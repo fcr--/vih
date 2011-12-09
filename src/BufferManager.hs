@@ -10,7 +10,6 @@ import Prelude hiding (lookup)
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,maxbuffer :: Int -- highest identifier given in a session
---                          ,mystery :: Map Int Int
                          } deriving Show
 
 
@@ -20,7 +19,7 @@ data BManager = BManager {
 -- Constructor, at the beginning ... there is always an empty buffer (i.e. one line, but empty)
 
 newBM :: BManager
-newBM = BManager (singleton 0 Buffer.newBuf) 1  -- empty -- PARA mystery
+newBM = BManager (singleton 0 Buffer.newBuf) 1 
 
 -- Creates a new buffer, cursor at position (0,0)
 newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
@@ -98,16 +97,20 @@ setXposBM bm bn newpos = case lookup bn mp of
 	where
 		mp = buffers bm
 
-winUpBM :: BManager -> Int -> Int -> Int -> BManager
-winUpBM bm bn w h = case lookup bn (buffers bm) of
-			Just buff -> bm {buffers = insert bn (Buffer.winUp buff w h) mp}
-			Nothing -> undefined -- TODO ..good luck
-	where mp = buffers bm
-winDownBM :: BManager -> Int -> Int -> Int -> BManager
-winDownBM = bm bn w h = case lookup bm mp of
-			Just buff -> bm {buffers = insert bn (Buffer.winDown buff w h) mp}
-			Nothing -> undefined -- TODO ..good luck
-	where mp = buffers bm
+
+winUpBM :: BManager -> Int ->  BManager
+winUpBM  bm bn = case lookup bn mp of
+			Just buff -> bm { buffers = insert bn (Buffer.winUp buff) mp }
+			Nothing -> undefined -- TODO .. good luck
+	where
+		mp = buffers bm
+
+winDownBM :: BManager -> Int ->  BManager
+winDownBM  bm bn = case lookup bn mp of
+			Just buff -> bm { buffers = insert bn (Buffer.winDown buff) mp }
+			Nothing -> undefined -- TODO .. good luck
+	where
+		mp = buffers bm
 
 openLineBM :: BManager -> Int -> Bool -> BManager
 openLineBM bm bn updown = case lookup bn (buffers bm) of
@@ -116,10 +119,12 @@ openLineBM bm bn updown = case lookup bn (buffers bm) of
 	where
 		mp = buffers bm
 
-printWinBM :: BManager -> Int -> (Int,Int) -> Image
+printWinBM :: BManager -> Int -> (Int,Int) -> (Image, BManager)
 printWinBM bm bn pos = case lookup bn (buffers bm) of 
-			Just buff -> Buffer.printBuff buff pos
+			Just buff -> let (img,buf) = Buffer.printBuff buff pos in (img, bm { buffers = insert bn buf mp} )
 			Nothing -> undefined -- TODO ..good goddamn luck!
+    where
+        mp = buffers bm
 
 writeFileBM :: BManager -> Int -> Maybe String -> IO BManager
 writeFileBM bm bn mbstr = 
