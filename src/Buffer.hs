@@ -170,9 +170,10 @@ printBuff :: Buffer -> Int -> (Int,Int) -> Image
 printBuff buf wp (w,h)	|	d >= h		= undefined -- ver en qué sublínea está el cursor
 			|	otherwise	= undefined
 	where
+		cl = curLine buf 
 		(p,l,s) = highlight buf
 		func = map horiz_cat
-		p' = map (func.partition') p -- [[Image]]
+		p' = map (reverse.func.partition') p -- [[Image]]
 		s' = map (func.partition') s -- [[Image]]
 		l' = func $ partition' l -- images of the lines [Image]
 		d  = length l'
