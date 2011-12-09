@@ -57,7 +57,7 @@ readFile fn = do
   ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 1000000000 }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 0 }
     where
     lines = map (\s -> BufferLine s []) ls -- no colors yet, wait for the file extension
 
@@ -66,7 +66,7 @@ emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  1000000000 } in ans
+newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  0 } in ans
 
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: Maybe FilePath -> Buffer -> IO Buffer
