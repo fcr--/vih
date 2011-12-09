@@ -181,8 +181,8 @@ printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el curso
 		p' = concat $ map (reverse.func.partition') p -- [Image]
 		s' = concat $ map (func.partition') s -- [Image]
 --		l' = func $ partition' l -- images of the lines [Image]
-		x' = min (length( Buffer.getLine buf) - 1 ) $ getX buf
-		l' = func $ partition' $ take (div (getX buf) w) l ++ [char ((def_attr `with_style` blink) `with_style` reverse_video ) ' '] ++ drop (div x' w + 1) l -- images of the lines [Image]
+		x' = max 0 $ min (length( Buffer.getLine buf) - 1 ) $ getX buf
+		l' = func $ partition' $ take x' l ++ [char ((def_attr `with_style` blink) `with_style` reverse_video ) ' '] ++ drop (x' + 1) l -- images of the lines [Image]
 		d  = length l'
 		empty_line = take w $ repeat (char def_attr ' ')
 		partition' :: [Image] -> [[Image]] -- line to list of "cropped" lines
@@ -274,7 +274,7 @@ main :: IO ()
 main =	 do
 		vty <- mkVty
 		buffer <- Buffer.readFile "ReadHighlighting.hs"
-		case printBuff buffer (80,24) of -- window up
+		case printBuff (buffer {curPos = 10}) (80,24) of -- window up
 				(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
 		shutdown vty
 	where
