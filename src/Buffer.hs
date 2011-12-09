@@ -167,6 +167,7 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- TODO: FINISH THIS FUNCTION... 
 -- windowPointer indicates the number of visual lines to be printed, above from the visual lines associated witht the current line
 -- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
+-- TODO: Probar con la función main de este módulo en ghci.
 printBuff :: Buffer -> Int -> (Int,Int) -> (Image,Int)
 printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está el cursor
 			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , wp')
