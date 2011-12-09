@@ -274,16 +274,12 @@ loop buffer vty wp = do
 			case nextEV of
 				EvKey ( KASCII 'q' ) []  -> return()
 				EvKey ( KASCII 'a' ) []  -> case printBuff bu wp (80,24) of
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bu vty wp'
 				EvKey ( KASCII 'j' ) [] -> case printBuff bj wp (80,24) of
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bj vty wp'
 				_ -> case printBuff bd wp (80,24) of
 					(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
 	where
-		sp xs = if null xs then [(char def_attr ' ')] else xs
-		(l,c,r) = Buffer.highlight bd
-		(l1,c1,r1) = Buffer.highlight bu
 		bd = ( lineDown buffer )
 		bu = (lineUp buffer)
 		bj = joinLine buffer
-		(lj,cj,rj) = (Buffer.highlight bj)
