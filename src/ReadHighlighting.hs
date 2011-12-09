@@ -8,6 +8,7 @@ import Data.Char
 import Data.Monoid
 import Control.Applicative
 
+-- このファイルでは日本語で書いた文があって、テストをできます。実は、私はこちらに書くか分かりませんでした…それで、ごみのを作りました。
 --	Documentation
 --	Grammar:
 --	 
