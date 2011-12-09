@@ -19,13 +19,33 @@ initwtm %getcommand
     getypos getline length setxpos % voy al fin de línea
   }
   {{"KASCII" "a"} {}} {
-    % mode insert al final de la línea
+    % mode insert a la derecha
     /mode /insert store % cambio modo insert
     getxpos 1 + setxpos
   }
   {{"KASCII" "h"} {}} {
     % izquierda
     getxpos 0 gt {getxpos 1 - setxpos} if
+  }
+  {{"KASCII" "I"} {}} {
+    % mode insert
+    /mode /insert store
+    0 setxpos
+  }
+  {{"KASCII" "i"} {}} {
+    % mode insert
+    /mode /insert store
+  }
+  {{"KASCII" "J"} {}} {
+    % join lines
+    getypos getysize 1 - lt {
+      getypos
+      getypos getline " " +
+      getypos 1 + getline +
+      setline
+      % delete old next line:
+      getypos 1 + deleteline
+    } if
   }
   {{"KASCII" "j"} {}} {
     % abajo
@@ -42,6 +62,7 @@ initwtm %getcommand
 	mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
       {getxpos 1 + setxpos} if
   }
+  % TODO
 >> def
 
 /interpcommand {
@@ -56,6 +77,7 @@ initwtm %getcommand
   % stacks ejemplo: {} ":q", {"archivo"} ":w"
   <<
     ":q" {quit}
+    % TODO
   >> exch
   2 copy known {
     get exec % está presente, utilizo los 2 originales en get
@@ -95,6 +117,7 @@ initwtm %getcommand
       } if
       dup 0 get 0 get "KEsc" eq {
 	/mode /normal store
+	getxpos 0 gt {getxpos 1 - setxpos} if
       } if
       % stack: [key mods]
     } if
