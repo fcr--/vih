@@ -189,9 +189,10 @@ printNoWin w h |(w<1) || (h<1) = empty_image
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
 printWin w h = printNoWin w h
 
+printWTM :: WTManager -> (WTManager,Image)
 printWTM wtm = runReader (printLayout (lo wtm)) (bm wtm)
 
-printControl lOut = string def_attr $show lOut
+printControl lOut = string def_attr $ show lOut
 printLayout :: Layout -> Reader BManager Image
 printLayout lOut = case lOut of
                         NoWin (x,y) -> return $ printNoWin x y

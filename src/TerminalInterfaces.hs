@@ -73,12 +73,12 @@ getYsize wtm = bmOp getYsizeBM wtm
 
 
 --TODO: DEFINE STUFF
-wsth :: (BManager -> Int -> Int -> Int -> BManager ) -> WTManager -> WTManager
+wsth :: (BManager -> Int -> BManager ) -> WTManager -> WTManager
 wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
     where navIO (x:xs) lo = case lo of
                               (Hspan a b lst) -> navIO xs (fst (lst!!x))
                               (Vspan a b lst) -> navIO xs (fst (lst!!x))
-                              (Window (x,y) z) -> ask >>= \a -> return (f a z x y)
+                              (Window (x,y) z) -> ask >>= \a -> return (f a z)
 
 winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
 winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
@@ -128,4 +128,10 @@ writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (l
 
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
--- vi: et sw=4
+closeWin :: WTManager -> IO WTManager
+closeWin wtm = return $ wtm{bm = modBM, lo = modLo}
+    where 
+        ((modLo,_),modBM) = runState (navLayout (bm wtm) (curwdw wtm)) (bm wtm)
+        navLayout lt (x:xs) = if length xs > 1 then
+                                
+

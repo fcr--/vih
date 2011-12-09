@@ -99,9 +99,15 @@ setXposBM bm bn newpos = case lookup bn mp of
 		mp = buffers bm
 
 winUpBM :: BManager -> Int -> Int -> Int -> BManager
-winUpBM = undefined
+winUpBM bm bn w h = case lookup bn (buffers bm) of
+			Just buff -> bm {buffers = insert bn (Buffer.winUp buff w h) mp}
+			Nothing -> undefined -- TODO ..good luck
+	where mp = buffers bm
 winDownBM :: BManager -> Int -> Int -> Int -> BManager
-winDownBM = undefined
+winDownBM = bm bn w h = case lookup bm mp of
+			Just buff -> bm {buffers = insert bn (Buffer.winDown buff w h) mp}
+			Nothing -> undefined -- TODO ..good luck
+	where mp = buffers bm
 
 openLineBM :: BManager -> Int -> Bool -> BManager
 openLineBM bm bn updown = case lookup bn (buffers bm) of
