@@ -10,7 +10,6 @@ import Prelude hiding (lookup)
 data BManager = BManager { 
                            buffers :: Map Int B.Buffer
                           ,maxbuffer :: Int -- highest identifier given in a session
---                          ,mystery :: Map Int Int
                          } deriving Show
 
 
@@ -20,7 +19,7 @@ data BManager = BManager {
 -- Constructor, at the beginning ... there is always an empty buffer (i.e. one line, but empty)
 
 newBM :: BManager
-newBM = BManager (singleton 0 Buffer.newBuf) 1  -- empty -- PARA mystery
+newBM = BManager (singleton 0 Buffer.newBuf) 1 
 
 -- Creates a new buffer, cursor at position (0,0)
 newBuffer :: BManager -> Maybe FilePath -> IO (BManager, Int)
