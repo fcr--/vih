@@ -40,7 +40,6 @@ openFile :: WTManager -> String -> IO WTManager
 writeFile :: WTManager -> Maybe String -> IO WTManager
 --Interfaces file for WTManager (Terminal.hs)
 
-setX xs nx = init xs ++ [nx]
 -- Para obtener datos del buffer local
 bmOp :: (BManager->Int->a)->WTManager->a
 bmOp f wtm = runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)

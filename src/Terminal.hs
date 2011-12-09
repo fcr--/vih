@@ -93,10 +93,12 @@ getW :: DisplayRegion -> Word
 getW (DisplayRegion w h) = w
 
 --Function to print the vty contained in the wtm
-showWTM :: WTManager -> IO ()
+showWTM :: WTManager -> IO WTManager
 showWTM wtm = do
-  update (vty wtm) (pic_for_image $ armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm)
-  show_cursor $ terminal $ vty wtm
+  (nwtm,im) <- armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm 
+  update (vty nwtm) (pic_for_image im)
+  show_cursor ( terminal $ vty nwtm)
+  return nwtm
 
 --Function to get the next event from the Vty
 getKey :: WTManager -> IO Event
@@ -167,18 +169,21 @@ delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
              in cl {comm = a++(drop 1 b)}
 
 --Function that paints an empty window
-armarIm w h  wtm =if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+armarIm :: Word -> Word -> WTManager -> IO (WTManager,Image)
+armarIm w h wtm = return (printWTM wtm) >>= \(nwtm,im)->return (nwtm, ab im) 
+    where 
+        ab im = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
                  else bordeSuperior w
-                      <->(printWTM wtm)
+                      <->im
                       <->string def_attr (stLine wtm)
                       <->bordeInferior w
-
+        
 --Function that sets the string holding in the status line
 setSt stl wtm = wtm {stLine = stl}
 
 --Function that paints the command line with the accumulative string given
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                         else (printWTM wtm) <-> string def_attr s
+                         else snd (printWTM wtm) <-> string def_attr s
                           
 bordeSuperior w = char_fill dum '-' w 1
 bordeInferior w = char_fill dum '-' w 2
@@ -190,13 +195,13 @@ printNoWin w h |(w<1) || (h<1) = empty_image
 printWin w h = printNoWin w h
 
 printWTM :: WTManager -> (WTManager,Image)
-printWTM wtm = runReader (printLayout (lo wtm)) (bm wtm)
+printWTM wtm = (\(a,b) -> (b,a)) $ runState (printLayout (lo wtm)) (wtm)
 
 printControl lOut = string def_attr $ show lOut
-printLayout :: Layout -> Reader BManager Image
+printLayout :: Layout -> State WTManager Image
 printLayout lOut = case lOut of
                         NoWin (x,y) -> return $ printNoWin x y
-                        (Window (x,y) num) -> asks (\bm-> printWinBM bm num (x,y))
+                        (Window (x,y) num) -> gets (\wm-> printWinBM (bm wm) num (x,y)) >>= \(im,nbm) -> modify (\wtm -> wtm{bm = nbm}) >> return im
                         (Hspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <|> barraVert y <|> b)) empty_image
                         (Vspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <-> barraHoriz x <-> b)) empty_image
     where barraVert y = char_fill cbarras '|' 1 y
