@@ -3,6 +3,7 @@ import Terminal
 import Control.Monad.Reader
 import Control.Monad.State
 import BufferManager
+import Graphics.Vty
 import Prelude hiding (readFile)
 -- Operaciones para navegar el archivo actual
 --
@@ -128,9 +129,32 @@ writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (l
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 
 closeWin :: WTManager -> IO WTManager
-closeWin wtm = return $ wtm{bm = modBM, lo = modLo}
+closeWin wtm = do
+        let b = (\(wt,bf) -> wt{bm = bf} ) $ loOp deleteBuffer id wtm
+        (DisplayRegion w h) <- display_bounds $ terminal $ vty b
+        a <- return $ resizeLayout (fromIntegral w) (fromIntegral h) (b{lo = fst(navLayout (lo b) (curwdw b))})
+        showWTM a >> return a{curwdw = newcurwdw a}
     where 
-        ((modLo,_),modBM) = runState (navLayout (bm wtm) (curwdw wtm)) (bm wtm)
-        navLayout lt (x:xs) = if length xs > 1 then
-                                
-
+        navLayout lt (x:xs) = if length xs > 3 then 
+                (case lt of 
+                    (Hspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if horiz then mergeLayout horiz nlo w h lst x else (Hspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),True)
+                    (Vspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if not horiz then mergeLayout horiz nlo w h lst x else (Vspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),False)
+                    _ -> error "closeWin")
+            else
+                (case lt of
+                    (Hspan w h lst) -> (Hspan w h (take x lst ++ drop (x+1) lst),True)
+                    (Vspan w h lst) -> (Vspan w h (take x lst ++ drop (x+1) lst),False))
+        mergeLayout horiz nlo w h lst x = case horiz of
+            True -> case nlo of
+                (Hspan _ _ botlst) -> (Hspan 0 0 (take x lst ++ botlst ++ drop (x+1) lst),True)
+                _ -> error "true closeWin"
+            False -> case nlo of
+                (Vspan _ _ botlst) -> (Vspan 0 0 (take x lst ++ botlst ++ drop (x+1) lst),False)
+newcurwdw :: WTManager -> [Int]
+newcurwdw wtm = getNewWin (lo wtm)
+    where
+        getNewWin :: Layout -> [Int]
+        getNewWin lo = case lo of
+            (Hspan _ _ lst) -> (:) 0 $ getNewWin $ (fst.head) lst
+            (Vspan _ _ lst) -> (:) 0 $ getNewWin $ (fst.head) lst
+            (Window _ _) -> [0,0]
