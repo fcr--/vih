@@ -1,8 +1,10 @@
-all = (comment / string / reserved (' ' / '
+all = (comment / string / (' ' / '
+' / !.) reserved (' ' / '
 ' / !.) / Cons / float / plain / . )*;
-comment = "--" (!'
+comment = "--" (todo / !'
 '.)* / multicomment  ; 
-multicomment = "{-" ("--" / multicomment / !("-}").)* "-}" ? ;
+multicomment = "{-" ("--" / todo / multicomment / !("-}").)* "-}" ? ;
+todo = "TODO" ;
 string =   (! "\\" ) '"' (!'"'.)* '"' (! "\\" );
 reserved  = '=' / '|' / ".." / "::" / '@' /  '~' / "->" / "<-" /  words;
 words = "case" / "class" / "data" / "default" / "deriving" / "do"

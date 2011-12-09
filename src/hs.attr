@@ -1,1 +1,2 @@
-comment = fgcolor blue; string = fgcolor red; reserved = bold | fgcolor green ; float = bold | fgcolor red ; Cons = fgcolor green | bold ;
+comment = fgcolor blue; string = fgcolor red; reserved = dim | fgcolor yellow ; float = dim | fgcolor red ; Cons = fgcolor green | bold ; 
+todo = bold | fgcolor yellow ;

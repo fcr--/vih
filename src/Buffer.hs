@@ -267,7 +267,7 @@ main =	 do
 		buffer <- Buffer.readFile "Buffer.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
-		loop buffer vty 10
+		loop buffer vty 0
 		shutdown vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
