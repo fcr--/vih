@@ -225,8 +225,10 @@ setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine b
 getLineNumber :: Buffer -> Int
 getLineNumber buff = curLine buff
 
+-- TODO : Check whether this is okay 
 getX :: Buffer -> Int
-getX buff = curPos buff
+getX buff = max 0 $ min l  $curPos buff
+	where	l =  (length $ Buffer.getLine buff) - 1
 
 setX :: Int -> Buffer -> Buffer
 setX x buff	=	buff { curPos = x}
