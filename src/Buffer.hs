@@ -1,5 +1,5 @@
 module Buffer where
-import Peg.PegParser hiding (char)
+import Peg.PegParser hiding (char, string)
 import Peg.Peg 
 import Graphics.Vty
 import Debug.Trace -- para jorobar
@@ -57,7 +57,7 @@ readFile fn = do
   ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 0 }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 1000000000 }
     where
     lines = map (\s -> BufferLine s []) ls -- no colors yet, wait for the file extension
 
@@ -66,7 +66,7 @@ emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  0 } in ans
+newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  1000000000 } in ans
 
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: Maybe FilePath -> Buffer -> IO Buffer
@@ -171,8 +171,9 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- TODO: Probar con la función main de este módulo en ghci.
 printBuff :: Buffer  -> (Int,Int) -> (Image,Buffer)
 printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el cursor
-			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , buf { winPoint =  wp'})
+			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' ++ noqui , buf { winPoint =  wp'})
 	where
+		noqui = repeat (string def_attr ";P")
 		wp = winPoint buf
 		wp' = max 0 $ min wp (h-d)
 		(p,l,s) = highlight buf
@@ -272,10 +273,9 @@ readGrammar s  = do
 main :: IO ()
 main =	 do
 		vty <- mkVty
-		buffer <- Buffer.readFile "Buffer.hs"
-		let (_,c,sig) = Buffer.highlight buffer
-		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
-		loop buffer vty
+		buffer <- Buffer.readFile "ReadHighlighting.hs"
+		case printBuff buffer (80,24) of -- window up
+				(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
 		shutdown vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
