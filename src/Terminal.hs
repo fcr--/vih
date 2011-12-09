@@ -72,7 +72,7 @@ cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 
 --Function to resize the current layout to fit the new window size
 resizeLayout::Int->Int->WTManager->WTManager
-resizeLayout h w wtm = wtm{lo = (resizeLo (h-2) w) (lo wtm),wtmH = h, wtmW = w}
+resizeLayout w h wtm = wtm{lo = (resizeLo w (h-3)) (lo wtm),wtmH = h, wtmW = w}
 
 resizeLo :: Int -> Int -> Layout -> Layout
 resizeLo w h lo = case lo of
@@ -81,8 +81,8 @@ resizeLo w h lo = case lo of
                     Window _ bn -> Window (w,h) bn
                     NoWin _ -> NoWin (w,h)
     where
-        funcV w h lst = let (d,m) = divMod h (length lst) in map (\(l,lst) -> (resizeLo w (d+1) l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo w d l,d)) (drop m lst)
-        funcH w h lst = let (d,m) = divMod w (length lst) in map (\(l,lst) -> (resizeLo (d+1) h l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo d h l,d)) (drop m lst)
+        funcV w h lst = let (d,m) = divMod (h-(length lst)+1) (length lst) in map (\(l,lst) -> (resizeLo w (d+1) l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo w d l,d)) (drop m lst)
+        funcH w h lst = let (d,m) = divMod (w-(length lst)+1) (length lst) in map (\(l,lst) -> (resizeLo (d+1) h l,d+1)) (take m lst) ++ map (\(l,lst) -> (resizeLo d h l,d)) (drop m lst)
 
 --Get the terminal's height
 getH :: DisplayRegion -> Word
@@ -92,32 +92,35 @@ getH (DisplayRegion w h) = h
 getW :: DisplayRegion -> Word
 getW (DisplayRegion w h) = w
 
+
 --Function to print the vty contained in the wtm
 showWTM :: WTManager -> IO WTManager
 showWTM wtm = do
-  (nwtm,im) <- armarIm (fromIntegral (wtmW wtm)) (fromIntegral (wtmH wtm)) wtm 
+  (DisplayRegion w h) <- display_bounds $ terminal (vty wtm)
+  (nwtm,im) <- armarIm (fromIntegral w) (fromIntegral h) wtm 
   update (vty nwtm) (pic_for_image im)
   show_cursor ( terminal $ vty nwtm)
-  return nwtm
-
+  return nwtm{wtmW =fromIntegral w, wtmH = fromIntegral h}
 --Function to get the next event from the Vty
-getKey :: WTManager -> IO Event
+getKey :: WTManager -> IO (Event,WTManager)
 getKey wtm = do nEv <- next_event (vty wtm)
                 case nEv of
-                  EvResize nx ny -> do showWTM (resizeLayout nx ny wtm)
-                                       getKey wtm
-                  _ -> return nEv
+                  EvResize nx ny -> do
+                        let wt = resizeLayout nx ny wtm
+                        showWTM wt
+                        getKey wt
+                  _ -> return (nEv,wtm)
 
 --Function to get a command from the command line
-getCommand :: WTManager -> IO (Maybe String)
+getCommand :: WTManager -> IO (WTManager,Maybe String)
 getCommand wtm = let vty' = (vty wtm) in
                  do bnds <- display_bounds (terminal vty')
                     getCommand' line wtm (getW bnds) (getW bnds)
     where line = CM {comm = ":", pos = 1}
 
 --Function that asks continully for the next character of the command until it ends and return the string that composes it
-getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (Maybe String)
-getCommand' cl wtm w h= do
+getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (WTManager,Maybe String)
+getCommand' cl wtm w h = do
     set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
     show_cursor (terminal $ vty wtm)
     nEv <- next_event (vty wtm)
@@ -125,8 +128,8 @@ getCommand' cl wtm w h= do
                              EvKey (KASCII c) _ -> let newCL = addCharComm cl c
                                                    in do updateVtyCommand wtm (comm newCL) w h
                                                          getCommand' newCL wtm w h
-                             EvKey (KEnter) _ -> do updateVtyCommand wtm "Ejecutando" w h
-                                                    return (Just $ comm cl)
+                             EvKey (KEnter) _ -> do updateVtyCommand wtm "" w h
+                                                    return (wtm, Just $ comm cl)
                              EvKey (KBS) _ -> let newCL = suprComm cl
                                               in do updateVtyCommand wtm (comm newCL) w h
                                                     getCommand' newCL wtm w h
@@ -141,10 +144,11 @@ getCommand' cl wtm w h= do
                                                  in if cur == length (comm cl)
                                                     then getCommand' cl wtm w h
                                                     else getCommand' (cl {pos = cur + 1}) wtm w h 
-                             EvKey (KEsc) _ -> do showWTM wtm
-                                                  return Nothing
-                             EvResize nx ny -> do showWTM (resizeLayout nx ny wtm)
-                                                  getCommand' cl wtm w h
+                             EvKey (KEsc) _ -> do nwtm <- showWTM wtm
+                                                  return (nwtm,Nothing)
+                             EvResize nx ny -> do let nwt = resizeLayout nx ny wtm
+                                                  showWTM (nwt)
+                                                  getCommand' cl nwt w h  
                              _ -> getCommand' cl wtm w h
 
 --Function that updates the Vty on screen with the given String placed on the command line

@@ -7,6 +7,7 @@ module Main (main,psParse,
              psExec)
     where
 
+import Debug.Trace
 import Terminal
 import TerminalInterfaces as TI
 import Peg.Peg
@@ -776,9 +777,9 @@ psOpWritefile st = ensureWTM "writefile" st $ ensureNArgs "writefile" 1 st $ cas
 
 psOpGetkey :: PSState -> IO (Either String PSState)
 psOpGetkey st = ensureWTM "getkey" st $ do
-        ev <- getKey $ fromJust $ wtm st
+        (ev,wtm) <- getKey $ fromJust $ wtm st
         case ev of
-            EvKey key mods -> return $ Right st {stack = PSList (prm mods) : PSList (prk key) : stack st}
+            EvKey key mods -> return $ Right st {wtm = Just wtm, stack = PSList (prm mods) : PSList (prk key) : stack st}
             _ -> return $ Right st
     where
     prk KEsc = [PSString "KEsc"]
@@ -807,10 +808,10 @@ psOpGetkey st = ensureWTM "getkey" st $ do
 
 psOpGetcommand :: PSState -> IO (Either String PSState)
 psOpGetcommand st = ensureWTM "getcommand" st $ do
-        res <- getCommand $ fromJust $ wtm st
+        (wt,res) <- getCommand $ fromJust $ wtm st
         case res of
-            Just str -> return $ Right st {stack = PSInt 1 : PSString str : stack st}
-            Nothing -> return $ Right st {stack = PSInt 0 : stack st}
+            Just str -> return $ Right st {wtm = Just wt,stack = PSInt 1 : PSString str : stack st}
+            Nothing -> return $ Right st {wtm = Just wt,stack = PSInt 0 : stack st}
 
 ------ MAIN LOOP ------
 
@@ -823,6 +824,7 @@ main = do
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
     home <- getAppUserDataDirectory "vih"
 
+--    trace home (return ())
     st' <- psExecFile st "init.ps"
     let st1 = case st' of Left _ -> st; Right s -> s
     st1'<- psExecFile st1 "/etc/init.ps"

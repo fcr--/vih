@@ -1,10 +1,11 @@
 module Main where
 
 import Terminal
+import TerminalInterfaces
 import Data.Maybe
 import BufferManager
 import Graphics.Vty
-
+{-
 main :: IO ()
 main = do wtm <- initWTM
           showWTM wtm
@@ -17,3 +18,15 @@ main = do wtm <- initWTM
             EvResize nx ny -> showWTM wtm
             _ -> showWTM wtm
           shutdown (vty wtm)
+-}
+main :: IO ()
+main = initWTM >>= mainloop
+
+mainloop wtm = do
+    wtx <- showWTM wtm
+    (ev,wt) <- getKey wtx
+    case ev of
+        EvKey _ _ -> shutdown (vty wt)
+        _ -> mainloop wt
+    
+    
