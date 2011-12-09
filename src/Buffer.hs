@@ -169,7 +169,7 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
 printBuff :: Buffer -> Int -> (Int,Int) -> (Image,Int)
 printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está el cursor
-			|	otherwise	=	(vert_cat $ take h $ take (wp' - div (getX buf) w) p'  ++ l' ++ s' , wp')
+			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , wp')
 	where
 		wp' = min wp (h-d)
 		(p,l,s) = highlight buf
