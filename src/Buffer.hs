@@ -20,7 +20,8 @@ data Buffer = Buffer {
 	numLines :: Int,
 	grammar  :: Defs,
 	colors   :: M.Map String RH.Attr,
-	file	 :: Maybe FilePath -- file associated with the buffer
+	file	 :: Maybe FilePath, -- file associated with the buffer
+	winPoint :: Int -- window pointer
 	} 
 
 -- highlighting with memoization
@@ -56,7 +57,7 @@ readFile fn = do
   ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
-		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing }
+		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 0 }
     where
     lines = map (\s -> BufferLine s []) ls -- no colors yet, wait for the file extension
 
@@ -65,7 +66,7 @@ emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing} in ans
+newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  0 } in ans
 
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: Maybe FilePath -> Buffer -> IO Buffer
@@ -99,7 +100,7 @@ lastLine buff
 lineUp :: Buffer -> Buffer
 lineUp buff
   | curLine buff == 0  = buff
-  | otherwise          = buff { contents = newContents, curLine = newCurLine }
+  | otherwise          = buff { contents = newContents, curLine = newCurLine , winPoint = winPoint buff - 1}
     where
     newContents = (\(p,c,n)-> (tail p, head p, c:n)) $ contents buff
     newCurLine = curLine buff - 1
@@ -107,7 +108,7 @@ lineUp buff
 lineDown :: Buffer -> Buffer
 lineDown buff
   | curLine buff == numLines buff - 1  = buff
-  | otherwise          = buff { contents = newContents, curLine = newCurLine }
+  | otherwise          = buff { contents = newContents, curLine = newCurLine , winPoint = winPoint buff + 1}
     where
     newContents = (\(p,c,n)->   (c : p , head n, tail n)) $ contents buff
     newCurLine = curLine buff + 1
@@ -168,10 +169,11 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- windowPointer indicates the number of visual lines to be printed, above from the visual lines associated witht the current line
 -- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
 -- TODO: Probar con la función main de este módulo en ghci.
-printBuff :: Buffer -> Int -> (Int,Int) -> (Image,Int)
-printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está el cursor
-			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , wp')
+printBuff :: Buffer  -> (Int,Int) -> (Image,Buffer)
+printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el cursor
+			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , buf { winPoint =  wp'})
 	where
+		wp = winPoint buf
 		wp' = max 0 $ min wp (h-d)
 		(p,l,s) = highlight buf
 		func = map horiz_cat
@@ -243,6 +245,12 @@ setY y buff	=	find cl (contents buff)
 						|	pos < fy	= find (pos+1) ( c:pr , head sig, tail sig)
  						|	otherwise 	= buff { contents = cont , curLine = fy}
 
+winUp :: Buffer -> Buffer
+winUp buff = buff { winPoint = winPoint buff + 1}
+
+winDown :: Buffer -> Buffer
+winDown buff = buff { winPoint = winPoint buff - 1 } 
+
 --	Read Grammar
 
 -- Extension -> (Grammar, Attributes for non-terminals)
@@ -267,25 +275,25 @@ main =	 do
 		buffer <- Buffer.readFile "Buffer.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
-		loop buffer vty 0
+		loop buffer vty
 		shutdown vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
 
-loop buffer vty wp = do
+loop buffer vty = do
 			nextEV <- next_event vty
 			case nextEV of
-				EvKey ( KASCII 'u' ) []  -> case printBuff buffer (wp+1) (80,24) of -- window up
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop buffer vty wp'
-				EvKey ( KASCII 'y' ) []  -> case printBuff buffer (wp-1) (80,24) of -- window down
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop buffer vty wp'
+				EvKey ( KASCII 'u' ) []  -> case printBuff (buffer { winPoint = winPoint buffer + 1}) (80,24) of -- window up
+								(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
+				EvKey ( KASCII 'y' ) []  -> case printBuff (buffer { winPoint = winPoint buffer - 1}) (80,24) of -- window down
+								(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
 				EvKey ( KASCII 'q' ) []  -> return()
-				EvKey ( KASCII 'a' ) []  -> case printBuff bu (wp-1) (80,24) of
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bu vty wp'
-				EvKey ( KASCII 'j' ) [] -> case printBuff bj wp (80,24) of
-								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bj vty wp'
-				_ -> case printBuff bd (wp+1) (80,24) of
-					(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
+				EvKey ( KASCII 'a' ) []  -> case printBuff bu (80,24) of
+								(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
+				EvKey ( KASCII 'j' ) [] -> case printBuff bj (80,24) of
+								(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
+				_ -> case printBuff bd (80,24) of
+					(img,buf) -> ( update vty $ pic_for_image $ img ) >> loop buf vty
 	where
 		bd = ( lineDown buffer )
 		bu = (lineUp buffer)
