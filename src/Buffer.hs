@@ -165,16 +165,17 @@ highlight :: Buffer -> ([[Image]],[Image],[[Image]])
 highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 
 -- TODO: FINISH THIS FUNCTION... 
--- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to Image
-printBuff :: Buffer -> Int -> (Int,Int) -> Image
-printBuff buf wp (w,h)	|	d >= h		= undefined -- ver en qué sublínea está el cursor
-			|	otherwise	= undefined
+-- windowPointer indicates the number of visual lines to be printed, above from the visual lines associated witht the current line
+-- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
+printBuff :: Buffer -> Int -> (Int,Int) -> (Image,Int)
+printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está el cursor
+			|	otherwise	=	(vert_cat $ take h $ take (wp' - div (getX buf) w) p'  ++ l' ++ s' , wp')
 	where
-		cl = curLine buf 
+		wp' = min wp (h-d)
 		(p,l,s) = highlight buf
 		func = map horiz_cat
-		p' = map (reverse.func.partition') p -- [[Image]]
-		s' = map (func.partition') s -- [[Image]]
+		p' = concat $ map (reverse.func.partition') p -- [Image]
+		s' = concat $ map (func.partition') s -- [Image]
 		l' = func $ partition' l -- images of the lines [Image]
 		d  = length l'
 		partition' :: [Image] -> [[Image]] -- line to list of "cropped" lines
