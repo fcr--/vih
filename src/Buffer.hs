@@ -190,6 +190,12 @@ printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el curso
 		partition'  xs	=	let ys = drop w xs in case null ys of
 								True -> if length xs == w then xs : [] else (xs ++ take (w - length xs) (repeat $ char def_attr ' ')) : []
 								_ -> take w xs : partition' ys
+                take' w [] = []
+                take' w (x:xs) = if xw <= w then x:take' (w-xw) xs else []
+                    where xw = fromEnum $ image_width x
+                drop' w [] = []
+                drop' w (x:xs) = if xw <= w then drop' (w-xw) xs else (x:xs)
+                    where xw = fromEnum $ image_width x
 
 {- let (lup,resto) = divMod (y-1) 2
 			  (pre,line,post) = highlight buf
