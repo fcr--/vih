@@ -15,6 +15,7 @@ main:
 clean:
 	rm -f ptest*
 	rm -f *.hi *.o
+	rm -f ./Peg/*.hi ./Peg/*.o
 
 install:
 	mkdir ~/.vih/
