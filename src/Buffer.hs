@@ -89,7 +89,7 @@ firstLine buff
   | curLine buff == 0 = buff
   | otherwise         = buff { contents = newContents, curLine = 0}
     where
-    newContents = (\(p,c,n) -> ([], last p, init p ++ [c] ++ n)) $ contents buff
+    newContents = (\(p,c,n) -> ([], last p, reverse (init p) ++ [c] ++ n)) $ contents buff
 
 lastLine :: Buffer -> Bool
 lastLine buff
@@ -165,8 +165,23 @@ highlight :: Buffer -> ([[Image]],[Image],[[Image]])
 highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 
 -- TODO: FINISH THIS FUNCTION... 
-printBuff :: Buffer -> (Int,Int) -> Image
-printBuff buf (x,y) = undefined
+-- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to Image
+printBuff :: Buffer -> Int -> (Int,Int) -> Image
+printBuff buf wp (w,h)	|	d >= h		= undefined -- ver en qué sublínea está el cursor
+			|	otherwise	= undefined
+	where
+		(p,l,s) = highlight buf
+		func = map horiz_cat
+		p' = map (func.partition') p -- [[Image]]
+		s' = map (func.partition') s -- [[Image]]
+		l' = func $ partition' l -- images of the lines [Image]
+		d  = length l'
+		partition' :: [Image] -> [[Image]] -- line to list of "cropped" lines
+		partition'  []	=	[] 
+		partition'  xs	=	let ys = drop w xs in case null ys of
+								True -> if length xs == w then xs : [] else (xs ++ take (w - length xs) (repeat $ char def_attr ' ')) : []
+								_ -> take w xs : partition' ys
+
 {- let (lup,resto) = divMod (y-1) 2
 			  (pre,line,post) = highlight buf
 			  (pr',li',po') = (take lup pre, line ++ (take (x-length line) ++ take (repeat [char def_attr ' ']),take (lup+resto) post)
