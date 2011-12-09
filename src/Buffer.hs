@@ -179,8 +179,9 @@ printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está 
 		s' = concat $ map (func.partition') s -- [Image]
 		l' = func $ partition' l -- images of the lines [Image]
 		d  = length l'
+		empty_line = take w $ repeat (char def_attr ' ')
 		partition' :: [Image] -> [[Image]] -- line to list of "cropped" lines
-		partition'  []	=	[] 
+		partition'  []	=	empty_line : []
 		partition'  xs	=	let ys = drop w xs in case null ys of
 								True -> if length xs == w then xs : [] else (xs ++ take (w - length xs) (repeat $ char def_attr ' ')) : []
 								_ -> take w xs : partition' ys
@@ -261,10 +262,10 @@ readGrammar s  = do
 main :: IO ()
 main =	 do
 		vty <- mkVty
-		buffer <- Buffer.readFile "BufferManager.hs"
+		buffer <- Buffer.readFile "Buffer.hs"
 		let (_,c,sig) = Buffer.highlight buffer
 		update vty $ pic_for_image $ foldr (<->) empty_image $  map ((foldr (<|>) empty_image).sp)  $ take 30 (c:sig)
-		loop buffer vty 15
+		loop buffer vty 10
 		shutdown vty
 	where
 		sp xs = if null xs then [(char def_attr ' ')] else xs
