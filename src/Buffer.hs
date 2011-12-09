@@ -172,12 +172,14 @@ printBuff :: Buffer -> Int -> (Int,Int) -> (Image,Int)
 printBuff buf wp (w,h)	|	d > h		=	(undefined, 0) -- ver en qué sublínea está el cursor
 			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' , wp')
 	where
-		wp' = min wp (h-d)
+		wp' = max 0 $ min wp (h-d)
 		(p,l,s) = highlight buf
 		func = map horiz_cat
 		p' = concat $ map (reverse.func.partition') p -- [Image]
 		s' = concat $ map (func.partition') s -- [Image]
-		l' = func $ partition' l -- images of the lines [Image]
+--		l' = func $ partition' l -- images of the lines [Image]
+		x' = min (length( Buffer.getLine buf) - 1 ) $ getX buf
+		l' = func $ partition' $ take (div (getX buf) w) l ++ [char ((def_attr `with_style` blink) `with_style` reverse_video ) ' '] ++ drop (div x' w + 1) l -- images of the lines [Image]
 		d  = length l'
 		empty_line = take w $ repeat (char def_attr ' ')
 		partition' :: [Image] -> [[Image]] -- line to list of "cropped" lines
@@ -273,12 +275,16 @@ main =	 do
 loop buffer vty wp = do
 			nextEV <- next_event vty
 			case nextEV of
+				EvKey ( KASCII 'u' ) []  -> case printBuff buffer (wp+1) (80,24) of -- window up
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop buffer vty wp'
+				EvKey ( KASCII 'y' ) []  -> case printBuff buffer (wp-1) (80,24) of -- window down
+								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop buffer vty wp'
 				EvKey ( KASCII 'q' ) []  -> return()
-				EvKey ( KASCII 'a' ) []  -> case printBuff bu wp (80,24) of
+				EvKey ( KASCII 'a' ) []  -> case printBuff bu (wp-1) (80,24) of
 								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bu vty wp'
 				EvKey ( KASCII 'j' ) [] -> case printBuff bj wp (80,24) of
 								(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bj vty wp'
-				_ -> case printBuff bd wp (80,24) of
+				_ -> case printBuff bd (wp+1) (80,24) of
 					(img,wp') -> ( update vty $ pic_for_image $ img ) >> loop bd vty wp'
 	where
 		bd = ( lineDown buffer )
