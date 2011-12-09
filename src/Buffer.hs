@@ -175,7 +175,7 @@ printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el curso
 	where
 		noqui = repeat (string def_attr ";P")
 		wp = winPoint buf
-		wp' = max 0 $ min wp (h-d)
+		wp' = min' 0 p' $ min wp (h-d)
 		(p,l,s) = highlight buf
 		func = map horiz_cat
 		p' = concat $ map (reverse.func.partition') p -- [Image]
@@ -197,6 +197,9 @@ printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el curso
                 drop' w [] = []
                 drop' w (x:xs) = if xw <= w then drop' (w-xw) xs else (x:xs)
                     where xw = fromEnum $ image_width x
+		min' acc [] _ = acc -- to prevent wp' from being larger than the number of lines that are above the current one.
+		min' acc (_:xs) n	|	n <= 0 		=	 acc
+					|	otherwise	=	 min' (acc+1) xs (n-1)
 
 {- let (lup,resto) = divMod (y-1) 2
 			  (pre,line,post) = highlight buf
