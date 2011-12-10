@@ -618,7 +618,7 @@ psOpGetinterval st = ensureNArgs "getinterval" 3 st $ case stack st of
     (PSInt c : PSInt i : PSList list : ss) -> return $ if i>=0 && c>=0 && i<=length list
         then Right st {stack = PSList (take c $ drop i $ list) : ss}
         else Left "psInterp error: getinterval: index out of bounds"
-    _ -> return $ Left "psInterp error: get: type error (check documentation PSvi.txt)"
+    _ -> return $ Left "psInterp error: getinterval: type error (check documentation PSvi.txt)"
 
 psOpRegexp :: PSState -> IO (Either String PSState)
 psOpRegexp st = ensureNArgs "regexp" 2 st $ case stack st of

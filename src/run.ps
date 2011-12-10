@@ -1,10 +1,46 @@
 initwtm %getcommand
 
+/cursorup {getypos 0 gt {getypos 1 - setypos} if} def
+/cursordown {getypos getysize 1 - lt {getypos 1 + setypos} if} def
+/cursorleft {getxpos 0 gt {getxpos 1 - setxpos} if} def
+/cursorright {
+  getxpos
+  getypos getline length % límite derecho es el largo...
+      mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
+  lt   {getxpos 1 + setxpos} if
+} def
+
 %%%%%% DEFAULT KEYBINDINGS %%%%%%
 
 /mode /normal def
 
 /normalkeybindings <<
+  {{"KUp"} {}} {
+    cursorup
+  }
+  {{"KDown"} {}} {
+    cursordown
+  }
+  {{"KLeft"} {}} {
+    cursorleft
+  }
+  {{"KRight"} {}} {
+    cursorright
+  }
+  {{"KEnter"} {}} {
+    cursordown
+    begin
+      /x 0 def
+      /line getypos getline def
+      /len line length def
+      {
+	x len ge {exit} if % si x>=len break loop
+	line x get " " ne {exit} if % si line[x]!=" " break loop
+	/x x 1 + def
+      } loop
+      x setxpos
+    end
+  }
   {{"KASCII" ":"} {}} {
     getcommand
     {interpcommand} if
@@ -24,8 +60,7 @@ initwtm %getcommand
     getxpos 1 + setxpos
   }
   {{"KASCII" "h"} {}} {
-    % izquierda
-    getxpos 0 gt {getxpos 1 - setxpos} if
+    cursorleft
   }
   {{"KASCII" "I"} {}} {
     % mode insert
@@ -48,20 +83,13 @@ initwtm %getcommand
     } if
   }
   {{"KASCII" "j"} {}} {
-    % abajo
-    getypos getysize 1 - lt {getypos 1 + setypos} if
+    cursordown
   }
   {{"KASCII" "k"} {}} {
-    % arriba
-    getypos 0 gt {getypos 1 - setypos} if
+    cursorup
   }
   {{"KASCII" "l"} {}} {
-    % derecha
-    getxpos
-    getypos getline length % límite derecho es el largo...
-	mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
-    lt
-      {getxpos 1 + setxpos} if
+    cursorright
   }
   {{"KASCII" "O"} {}} {
     0 openline
@@ -72,6 +100,38 @@ initwtm %getcommand
     /mode /insert store
   }
   % TODO
+>> def
+
+/insertkeybindings <<
+  {{"KUp"} {}} {
+    cursorup
+  }
+  {{"KDown"} {}} {
+    cursordown
+  }
+  {{"KLeft"} {}} {
+    cursorleft
+  }
+  {{"KRight"} {}} {
+    cursorright
+  }
+  {{"KEnter"} {}} {
+    begin
+      /line getypos getline def
+      /len line length def
+      /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+      1 openline
+      % set the text behind the cursor in the current line:
+      getypos 1 -
+	line 0 x getinterval
+      setline
+      % set the text after the cursor to the new line:
+      getypos
+	line x  len x -  getinterval
+      setline
+      0 setxpos
+    end
+  }
 >> def
 
 /interpcommand {
@@ -125,9 +185,13 @@ initwtm %getcommand
 	end
 	% stack: [key mods] key
       } if
+      dup insertkeybindings exch known {
+	% si está en el diccionario lo ejecuta:
+	dup insertkeybindings exch get exec
+      } if
       dup 0 get 0 get "KEsc" eq {
 	/mode /normal store
-	getxpos 0 gt {getxpos 1 - setxpos} if
+	cursorleft
       } if
       % stack: [key mods]
     } if
