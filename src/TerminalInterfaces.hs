@@ -87,9 +87,7 @@ openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boo
 -- bmOp :: (BManager->Int->a)->WTManager->a
 -- openFile :: WTManager -> String -> IO WTManager
 openFile wtm str = do nbm <- bmOp ((\a b c -> openFileBM b c a) str) wtm
-                      wtmnew <- return $ wtm{bm = nbm}
-                      showWTM wtmnew
-    where openFileBM = error "FIXME!!!"
+                      showWTM (wtm{bm = nbm})
 
 -- To move left/up/down/right
 data Pos = L | U | D | R deriving(Eq)
