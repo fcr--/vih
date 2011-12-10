@@ -9,6 +9,7 @@ initwtm %getcommand
       mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
   lt   {getxpos 1 + setxpos} if
 } def
+/cursoreol {getypos getline length setxpos} def
 
 %%%%%% DEFAULT KEYBINDINGS %%%%%%
 
@@ -41,13 +42,20 @@ initwtm %getcommand
       x setxpos
     end
   }
+  {{"KBS"} {}} {
+    % estoy al comienzo de la línea?
+    getxpos 0 eq {
+      getypos 0 gt {cursorup cursoreol} if
+    } {
+      cursorleft
+    } ifelse
+  }
   {{"KASCII" ":"} {}} {
     getcommand
     {interpcommand} if
   }
   {{"KASCII" "$"} {}} {
-    % moverse al fin de línea
-    getypos getline length setxpos
+    cursoreol % moverse al fin de línea
   }
   {{"KASCII" "A"} {}} {
     % mode insert al final de la línea
@@ -131,6 +139,33 @@ initwtm %getcommand
       setline
       0 setxpos
     end
+  }
+  {{"KBS"} {}} {
+    % estoy al comienzo de la línea?
+    getxpos 0 eq {
+      getypos 0 gt { % solo actúo si no estoy en la primer línea.
+	begin
+	  /yp getypos 1 - def
+	  /lp yp getline def
+	  yp
+	    lp  getypos getline + % uno la línea previa y la actual
+	  setline
+	  deleteline
+	  yp setypos
+	  lp length setxpos % ubico el cursor al final de la línea previa.
+	end
+      } if
+    } {
+      % hay texto a la izquierda, simplemente borro
+      /line getypos getline def
+      /len line length def
+      /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+      getypos
+	line 0  x 1 -  getinterval
+	line x  len x -  getinterval + % concat from x, len-x chars.
+      setline
+      x 1 - setxpos
+    } ifelse
   }
 >> def
 
