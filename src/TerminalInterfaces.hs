@@ -60,13 +60,13 @@ loOp f g wtm = let (retf, (bmNew,z)) = runState (navIO (curwdw wtm) (lo wtm)) (b
 getBuffSize wtm = getBuffSizeBM (bm wtm)
 
 getLine wtm lnum = bmOp ((\a b c -> getLineBM b c a) lnum) wtm 
-setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \(cosa,f) -> let wtm' = cosa {bm = f lnum nstr} in  showWTM wtm' >> return wtm'
+setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \(cosa,f) -> let wtm' = cosa {bm = f lnum nstr} in  showWTM wtm'
 
 getXpos wtm = bmOp getXposBM wtm
 getYpos wtm = bmOp getYposBM wtm
 
-setXpos wtm nx = return ((\(wtman,nBM) -> wtman{bm = nBM nx }) $ loOp setXposBM id wtm) >>= \cosa -> showWTM cosa >> return cosa
-setYpos wtm ny = return ((\(wtman,nBM) -> wtman{bm = nBM ny }) $ loOp setYposBM id wtm) >>= \cosa -> showWTM cosa >> return cosa
+setXpos wtm nx = return ((\(wtman,nBM) -> wtman{bm = nBM nx }) $ loOp setXposBM id wtm) >>= showWTM
+setYpos wtm ny = return ((\(wtman,nBM) -> wtman{bm = nBM ny }) $ loOp setYposBM id wtm) >>= showWTM
 
 getXsize wtm = bmOp getXsizeBM wtm
 getYsize wtm = bmOp getYsizeBM wtm 
@@ -80,16 +80,15 @@ wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
                               (Vspan a b lst) -> navIO xs (fst (lst!!x))
                               (Window (x,y) z) -> ask >>= \a -> return (f a z)
 
-winUp wtm = return (wsth winUpBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
-winDown wtm = return (wsth winDownBM wtm) >>= \wtmn -> showWTM wtmn >> return wtmn
-openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>= \cosa -> showWTM cosa >> return cosa) updown
+winUp wtm = return (wsth winUpBM wtm) >>= showWTM
+winDown wtm = return (wsth winDownBM wtm) >>=  showWTM
+openLine updown wtm = (\fruta -> return ((\(wt,bx) -> wt{bm = bx}) $ loOp ((\boolvar rest1 rest2 -> openLineBM rest1 rest2 boolvar) fruta) id wtm) >>=  showWTM) updown
 
 -- bmOp :: (BManager->Int->a)->WTManager->a
 -- openFile :: WTManager -> String -> IO WTManager
 openFile wtm str = do nbm <- bmOp ((\a b c -> openFileBM b c a) str) wtm
                       wtmnew <- return $ wtm{bm = nbm}
                       showWTM wtmnew
-                      return wtmnew
     where openFileBM = error "FIXME!!!"
 
 -- To move left/up/down/right
@@ -115,9 +114,7 @@ navigatePos pos toNav lenPlace | toNav == 0 && navLev pos == True = 0
 winMove :: WTManager -> Pos -> IO WTManager
 winMove wtm pos = let (xs,_) = _loMove (lo wtm) (curwdw wtm) pos in
                     do
-                        newWTM <- return (wtm{curwdw = xs})
-                        showWTM newWTM
-                        return newWTM
+                        showWTM (wtm{curwdw = xs})
 _loMove :: Layout -> [Int] -> Pos -> ([Int],Bool)
 _loMove lo (x:xs) pos = case lo of
             (Window _ _) -> (xs,False)
@@ -133,7 +130,7 @@ closeWin wtm = do
         let b = (\(wt,bf) -> wt{bm = bf} ) $ loOp deleteBuffer id wtm
         (DisplayRegion w h) <- display_bounds $ terminal $ vty b
         a <- return $ resizeLayout (fromIntegral w) (fromIntegral h) (b{lo = fst(navLayout (lo b) (curwdw b))})
-        showWTM a >> return a{curwdw = newcurwdw a}
+        showWTM a >>= \x -> return x {curwdw = newcurwdw x}
     where 
         navLayout lt (x:xs) = if length xs > 3 then 
                 (case lt of 
