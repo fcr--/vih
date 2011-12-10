@@ -125,7 +125,7 @@ deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine buff "",[]) }
 
 -- equivalent to pressing 'O' (false) or 'o' (true).
 openLine :: Buffer -> Bool -> Buffer
-openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) , winPoint = winPoint buff + 1}
+openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) , winPoint = winPoint buff + 1} -- actually this should depend upon the dimensions of the terminal
 			|	otherwise	=	buff { contents = oF (contents buff), numLines = (numLines buff + 1) }
 	where
 		oT	=	\(prev, l, sig) -> ( l : prev, loadLine buff "", sig)
