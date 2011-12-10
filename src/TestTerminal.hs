@@ -28,7 +28,7 @@ mainloop wtm = do
     case ev of
         EvKey (KASCII 'q') _ -> shutdown (vty wt)
 	EvKey (KASCII 'o') _ -> let b = bm wt in  mainloop $ wt { bm =  openLineBM b 0 True }
-        EvKey (KASCII c) _ -> let b = bm wt in  mainloop $ wt { bm =  setLineBM b 0 (getYposBM b 0) ( (getLineBM b 0 (getYposBM b 0)) ++ [c]) }
+        EvKey (KASCII c) _ -> let b = bm wt in  mainloop $ wt { bm =  setXposBM ( setLineBM b 0 (getYposBM b 0) ( (getLineBM b 0 (getYposBM b 0)) ++ [c]) ) 0 ( (getXposBM b 0 ) + 1) }
         _ -> mainloop wt
     
     
