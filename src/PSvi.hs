@@ -220,6 +220,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
         ("getxsize", psOpGetxsize), ("getysize", psOpGetysize),
         ("winup", psOpWinup),       ("windown", psOpWindown),
+        ("openline", psOpOpenline),
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand)
         ]
@@ -327,8 +328,8 @@ psOpRoll st = ensureNArgs "roll" 2 st $ return $ case stack st of
 psOpAdd :: PSState -> IO (Either String PSState)
 psOpAdd st = ensureNArgs "+" 2 st $ return $ case stack st of
     (PSInt i1:PSInt i2:ss) ->   Right st {stack = PSInt (i1 + i2) : ss}
-    (PSList l1:PSList l2:ss) -> Right st {stack = PSList (l1 ++ l2) : ss}
-    (PSString s1:PSString s2:ss) -> Right st {stack = PSString (s1 ++ s2) : ss}
+    (PSList l2:PSList l1:ss) -> Right st {stack = PSList (l1 ++ l2) : ss}
+    (PSString s2:PSString s1:ss) -> Right st {stack = PSString (s1 ++ s2) : ss}
     _ -> Left "psInterp error: +: types not matching or non int/code/list/string"
 
 psOpSub :: PSState -> IO (Either String PSState)

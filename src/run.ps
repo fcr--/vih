@@ -58,9 +58,18 @@ initwtm %getcommand
   {{"KASCII" "l"} {}} {
     % derecha
     getxpos
-    getypos getline length lt % límite derecho es el largo...
+    getypos getline length % límite derecho es el largo...
 	mode /normal eq {1 -} if % en modo normal no puedo ir tan a la derecha
+    lt
       {getxpos 1 + setxpos} if
+  }
+  {{"KASCII" "O"} {}} {
+    0 openline
+    /mode /insert store
+  }
+  {{"KASCII" "o"} {}} {
+    1 openline
+    /mode /insert store
   }
   % TODO
 >> def
@@ -112,6 +121,7 @@ initwtm %getcommand
 	  char +
 	  line x  len x -  getinterval + % concat from x, len-x chars.
 	  setline
+	  x 1 + setxpos
 	end
 	% stack: [key mods] key
       } if
