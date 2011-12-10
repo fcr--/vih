@@ -11,6 +11,65 @@ initwtm %getcommand
 } def
 /cursoreol {getypos getline length setxpos} def
 
+% - getliteralkey keystr
+/getliteralkey {
+  % TODO
+} def
+
+% location bindings are relative to symbols x, y, and these
+% bindings must update those variables.
+%   x may be equal to length of 'y getline'.
+/locationbindings <<
+  "h" {
+    x 0 gt {/x x 1 - def} if
+  }
+  "j" {
+    y  getysize 1 -  lt {/y y 1 + def} if
+  }
+  "k" {
+    y 0 gt {/y y 1 - def} if
+  }
+  "l" {
+    x  y getline length  lt  {/x x 1 + def} if
+  }
+  "b" {
+    % TODO
+  }
+  "w" {
+    % TODO
+  }
+  "e" {
+    % TODO
+  }
+  "f" {
+    % TODO
+  }
+  "t" {
+    /line y getline def
+    /x2 x 1 + dup line length gt {pop line length} if
+    /line line x2  line length  getinterval
+    line getliteralkey search {
+      % stack: ... post match pre
+      % x := x2 + length(pre):
+      /x exch length x2 + def % stack: ... post match
+      pop pop
+    } if
+  }
+  "^" {
+    /x 0 def
+  }
+  "$" {
+    /x y getline length def
+  }
+>>
+
+/getlocationkey {
+  % TODO
+}
+
+/getlocation {[getxpos getypos]} def
+/setlocation {exec setypos setxpos} def
+
 %%%%%% DEFAULT KEYBINDINGS %%%%%%
 
 /mode /normal def
@@ -167,6 +226,7 @@ initwtm %getcommand
       x 1 - setxpos
     } ifelse
   }
+  % TODO
 >> def
 
 /interpcommand {
@@ -229,7 +289,7 @@ initwtm %getcommand
 	cursorleft
       } if
       % stack: [key mods]
-    } if
+    } if % Add other modes, TODO
     pop
   } ifelse % mode /normal eq
 } loop
