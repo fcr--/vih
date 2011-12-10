@@ -71,6 +71,9 @@ setYpos wtm ny = return ((\(wtman,nBM) -> wtman{bm = nBM ny }) $ loOp setYposBM 
 getXsize wtm = bmOp getXsizeBM wtm
 getYsize wtm = bmOp getYsizeBM wtm 
 
+-- deleteLineBM :: BManager -> Int -> BManager
+deleteline wtm = bmOp deleteLineBM wtm
+
 
 --TODO: DEFINE STUFF
 wsth :: (BManager -> Int -> BManager ) -> WTManager -> WTManager

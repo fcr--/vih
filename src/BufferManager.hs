@@ -62,6 +62,14 @@ setLineBM bm bn line s = case lookup bn mp of
 	where
 		mp = buffers bm
 
+-- deleteLine :: Buffer -> Buffer
+deleteLineBM :: BManager -> Int -> BManager
+deleteLineBM bm bn = case lookup bn mp of
+                            Just buff -> bm { buffers = insert bn ( Buffer.deleteLine buff) mp }
+                            Nothing   -> undefined -- TODO ..good luck
+	where
+		mp = buffers bm
+
 -- BManager -> Buffer Number -> Line Number -> BManager
 setYposBM :: BManager -> Int -> Int -> BManager
 setYposBM bm bn line = case lookup bn mp of
