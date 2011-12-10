@@ -256,7 +256,7 @@ setY y buff	=	find cl (contents buff)
 		find pos cont@(pr,c,sig) --	|	trace (show pos ++ " " ++ show c) False	= undefined
 						|	pos > fy	= find (pos-1) ( tail pr, head pr, c : sig)
 						|	pos < fy	= find (pos+1) ( c:pr , head sig, tail sig)
- 						|	otherwise 	= buff { contents = cont , curLine = fy}
+ 						|	otherwise 	= buff { contents = cont , curLine = fy, winPoint = winPoint buff + fy - cl }
 
 winUp :: Buffer -> Buffer
 winUp buff = buff { winPoint = winPoint buff + 1}
