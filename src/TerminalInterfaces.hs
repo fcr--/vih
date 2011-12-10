@@ -74,7 +74,7 @@ getYsize wtm = bmOp getYsizeBM wtm
 deleteLine :: WTManager -> IO WTManager
 deleteLine wtm = do
 			let (wtm',bm')  = loOp deleteLineBM id wtm
-			return $ wtm' { bm = bm' }
+			showWTM $ wtm' { bm = bm' }
 
 
 --TODO: DEFINE STUFF
