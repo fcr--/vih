@@ -60,7 +60,7 @@ loOp f g wtm = let (retf, (bmNew,z)) = runState (navIO (curwdw wtm) (lo wtm)) (b
 getBuffSize wtm = getBuffSizeBM (bm wtm)
 
 getLine wtm lnum = bmOp ((\a b c -> getLineBM b c a) lnum) wtm 
-setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \(cosa,f) -> showWTM cosa >> return cosa
+setLine wtm lnum nstr = return ( loOp setLineBM id wtm ) >>= \(cosa,f) -> let wtm' = cosa {bm = f lnum nstr} in  showWTM wtm' >> return wtm'
 
 getXpos wtm = bmOp getXposBM wtm
 getYpos wtm = bmOp getYposBM wtm
