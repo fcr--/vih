@@ -125,6 +125,7 @@ getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (WTManager,Maybe S
 getCommand' cl wtm w h = do
 --    set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
 --    show_cursor (terminal $ vty wtm)
+    updateVtyCommand wtm (comm cl) w h
     (nEv,wtm') <- getKey wtm
     case nEv of
                              EvKey (KASCII c) _ -> let newCL = addCharComm cl c
