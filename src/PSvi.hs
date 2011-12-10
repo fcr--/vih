@@ -193,10 +193,10 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("not", psOpNot),
         ("eq", psOpEq "eq" (==)),
         ("ne", psOpEq "ne" (/=)),
-        ("ge", psOpOrd "ge" (>)),
-        ("gt", psOpOrd "gt" (>=)),
-        ("le", psOpOrd "le" (<)),
-        ("lt", psOpOrd "lt" (<=)),
+        ("ge", psOpOrd "ge" (>=)),
+        ("gt", psOpOrd "gt" (>)),
+        ("le", psOpOrd "le" (<=)),
+        ("lt", psOpOrd "lt" (<)),
         -- control:
         ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
         ("forall", psOpForall), ("repeat", psOpRepeat), ("loop", psOpLoop),
@@ -220,7 +220,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
         ("getxsize", psOpGetxsize), ("getysize", psOpGetysize),
         ("winup", psOpWinup),       ("windown", psOpWindown),
-        ("openline", psOpOpenline),
+        ("openline", psOpOpenline), ("deleteline", psOpDeleteline),
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand)
         ]
@@ -758,6 +758,11 @@ psOpOpenline st = ensureWTM "openline" st $ ensureNArgs "openline" 1 st $ case s
         wtm' <- openLine (after /= 0) (fromJust $ wtm st)
         return $ Right st {stack = ss, wtm = Just wtm'}
     _ ->return $ Left "psInterp error: openline: not an int on top of the stack"
+
+psOpDeleteline :: PSState -> IO (Either String PSState)
+psOpDeleteline st = ensureWTM "deleteline" st $ do
+    wtm' <- deleteLine (fromJust $ wtm st)
+    return $ Right st {wtm = Just wtm'}
 
 psOpOpenfile :: PSState -> IO (Either String PSState)
 psOpOpenfile st = ensureWTM "openfile" st $ ensureNArgs "openfile" 1 st $ case stack st of
