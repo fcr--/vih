@@ -237,8 +237,8 @@ getLineNumber buff = curLine buff
 
 -- TODO : Check whether this is okay 
 getX :: Buffer -> Int
-getX buff = max 0 $ min l  $curPos buff
-	where	l =  (length $ Buffer.getLine buff) - 1
+getX buff = max 0 $ min l  $ curPos buff
+	where	l =  (length $ Buffer.getLine buff)
 
 setX :: Int -> Buffer -> Buffer
 setX x buff	=	buff { curPos = x}
