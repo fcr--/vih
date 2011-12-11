@@ -13,7 +13,7 @@ import TerminalInterfaces as TI
 import Peg.Peg
 import Data.Char
 import Data.List
-import Data.Maybe(isNothing, fromJust)
+import Data.Maybe(isNothing, isJust, fromJust)
 import Control.Applicative
 import Control.Concurrent.STM
 import Control.Monad(when)
@@ -200,7 +200,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         -- control:
         ("if", psOpIf),         ("ifelse", psOpIfelse), ("for", psOpFor),
         ("forall", psOpForall), ("repeat", psOpRepeat), ("loop", psOpLoop),
-        ("exit", psOpExit),     ("exec", psOpExec),     --("filter", psOpFilter),
+        ("exit", psOpExit),     ("exec", psOpExec),     ("run", psOpRun),
         ("try", psOpTry),       ("quit", psOpQuit),
         -- data:
         ("[", psOpMark),        ("]", psOpCreateList),  ("<<", psOpMark),
@@ -214,7 +214,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("globaldict", psOpGlobaldict),
         ("type", psOpType),
         -- terminal:
-        ("initwtm", psOpInitwtm),   --("getbuffsize", psOpGetbuffsize),
+        ("initwtm", psOpInitwtm),   ("showwtm", psOpShowwtm),
         ("getline", psOpGetline),   ("setline", psOpSetline),
         ("getxpos", psOpGetxpos),   ("getypos", psOpGetypos),
         ("setxpos", psOpSetxpos),   ("setypos", psOpSetypos),
@@ -222,7 +222,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("winup", psOpWinup),       ("windown", psOpWindown),
         ("openline", psOpOpenline), ("deleteline", psOpDeleteline),
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
-        ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand)
+        ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand),
+        ("setst", psOpSetst)
         ]
 
 
@@ -465,12 +466,20 @@ psOpExit :: PSState -> IO (Either String PSState)
 psOpExit st = return $ Right (if retState st==PSRetOK then st {retState=PSRetBreak} else st)
 
 psOpQuit :: PSState -> IO (Either String PSState)
-psOpQuit st = exitSuccess
+psOpQuit st = do
+    when (isJust $ wtm st) $
+        shutdown $ vty $ fromJust $ wtm st
+    exitSuccess
 
 psOpExec :: PSState -> IO (Either String PSState)
 psOpExec st = ensureNArgs "exec" 1 st $ case stack st of
     (o:ss) -> psExec st {stack = ss} o
     _ -> return $ Left "psInterp error: exec: empty stack"
+
+psOpRun :: PSState -> IO (Either String PSState)
+psOpRun st = ensureNArgs "run" 1 st $ case stack st of
+    (PSString filename : ss) -> psExecFile st {stack = ss} filename
+    _ -> return $ Left "psInterp error: run: not a string on top of the stack"
 
 psOpTry :: PSState -> IO (Either String PSState)
 psOpTry st = ensureNArgs "try" 1 st $ case stack st of
@@ -704,10 +713,10 @@ psOpInitwtm st = case wtm st of
     Nothing -> initWTM >>= \w -> return $ Right st {wtm = Just w}
     Just wtm -> return $ Right st
 
-{-
-psOpGetbuffsize :: PSState -> IO (Either String PSState)
-psOpGetbuffsize st = return $ Right st {stack = PSInt (getBuffSize (wtm st)) : stack st}
--}
+psOpShowwtm :: PSState -> IO (Either String PSState)
+psOpShowwtm st = ensureWTM "showwtm" st $ do
+    wtm' <- showWTM $ fromJust $ wtm st
+    return $ Right st {wtm = Just wtm'}
 
 psOpGetline :: PSState -> IO (Either String PSState)
 psOpGetline st = ensureWTM "getline" st $ ensureNArgs "getline" 1 st $ case stack st of
@@ -821,6 +830,13 @@ psOpGetcommand st = ensureWTM "getcommand" st $ do
             Just str -> return $ Right st {wtm = Just wt,stack = PSInt 1 : PSString str : stack st}
             Nothing -> return $ Right st {wtm = Just wt,stack = PSInt 0 : stack st}
 
+psOpSetst :: PSState -> IO (Either String PSState)
+psOpSetst st = ensureWTM "setst" st $ ensureNArgs "setst" 1 st $ case stack st of
+    (PSString status : ss) -> do
+        wtm'' <- showWTM $ setSt status $ fromJust $ wtm st
+        return $ Right st {stack = ss, wtm = Just wtm''}
+    _ ->return $ Left "psInterp error: setst: not a string on top of the stack"
+
 ------ MAIN LOOP ------
 
 main = do
@@ -832,18 +848,26 @@ main = do
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
     home <- getAppUserDataDirectory "vih"
 
---    trace home (return ())
     st' <- psExecFile st "init.ps"
+    case st' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st1 = case st' of Left _ -> st; Right s -> s
+
     st1'<- psExecFile st1 "/etc/init.ps"
+    case st1' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st2 = case st1' of Left _ -> st1; Right s -> s
+
+    -- only the user script may fail:
     st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
     let st3 = case st2' of Left _ -> st2; Right s -> s
+
     st3'<- psExecFile st3 "run.ps"
     case st3' of Left err -> putStrLn err; _ -> return ()
     let st4 = case st3' of Left _ -> st3; Right s -> s
+
     st4'<- psExecFile st4 "/etc/run.ps"
+    case st4' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st5 = case st4' of Left _ -> st4; Right s -> s
+
     when (not $ isNothing $ wtm st5) (shutdown $ vty $ fromJust $ wtm st5)
     term st5
 
