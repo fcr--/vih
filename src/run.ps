@@ -10,6 +10,28 @@ initwtm %getcommand
   lt   {getxpos 1 + setxpos} if
 } def
 /cursoreol {getypos getline length setxpos} def
+/cursorbol {
+  begin
+    /x 0 def
+    /line getypos getline def
+    /len line length def
+    {
+      x len ge {exit} if % si x>=len break loop
+      line x get " " ne {exit} if % si line[x]!=" " break loop
+      /x x 1 + def
+    } loop
+    x setxpos
+  end
+} def
+
+% msgname msg msgstring
+/msg {
+  dup chosen_messages exch known {
+    chosen_messages exch get
+  } {
+    messages_en exch get
+  } ifelse
+} def
 
 % - getliteralkey keystr
 /getliteralkey {
@@ -30,7 +52,7 @@ initwtm %getcommand
     y 0 gt {/y y 1 - def} if
   }
   "l" {
-    x  y getline length  lt  {/x x 1 + def} if
+    x  y getline length 1 -  lt  {/x x 1 + def} if
   }
   "b" {
     % TODO
@@ -39,7 +61,6 @@ initwtm %getcommand
     % TODO
   }
   "e" {
-    /eof 0 def /x2 x def /y2 y def
     /runnext {
       /line y getline def
       /x x 1 + dup line length gt {pop line length} if def
@@ -53,23 +74,20 @@ initwtm %getcommand
 	% try with next line if it exists
 	/x 0 def
 	/y y 1 + def
-	y getysize lt {runnext} {/eof 1 def} ifelse
+	y getysize lt {runnext} {/move 0 def} ifelse
       } ifelse
     } def
     runnext
-    eof {
-      % recover old values
-      /x x2 def /y y2 def
-    } if
   }
   "f" {
     /line y getline def
     /c getliteralkey def
+    /move 0 def
     % ejecuto for(i=min(x,length(line)); i>=0; i--):
     x dup line length ge {pop line length 1 -} if
     -1 0 {
-      /i exch def
-      line i get c eq {/x i def exit} if % if (c==line[i]){x=i; break}
+      /x exch def
+      line i get c eq {/move 1 def exit} if % if (c==line[i]){x=i; break}
     } for
   }
   "t" {
@@ -81,7 +99,7 @@ initwtm %getcommand
       % x := x2 + length(pre):
       /x exch length x2 + def % stack: ... post match
       pop pop
-    } if
+    } {pop /move 0 def} ifelse
   }
   "^" {
     /x 0 def
@@ -99,9 +117,10 @@ initwtm %getcommand
 /movelocation {
   begin
     /x getxpos def /y getypos def
+    /move 1 def
     dup locationbindings exch known {
       locationbindings exch get exec
-      y setypos x setxpos
+      move {y setypos x setxpos} if
     } {pop} ifelse
   end
 } def
@@ -128,17 +147,7 @@ initwtm %getcommand
   }
   {{"KEnter"} {}} {
     cursordown
-    begin
-      /x 0 def
-      /line getypos getline def
-      /len line length def
-      {
-	x len ge {exit} if % si x>=len break loop
-	line x get " " ne {exit} if % si line[x]!=" " break loop
-	/x x 1 + def
-      } loop
-      x setxpos
-    end
+    cursorbol
   }
   {{"KBS"} {}} {
     % estoy al comienzo de la línea?
@@ -152,6 +161,9 @@ initwtm %getcommand
     getcommand
     {interpcommand} if
   }
+  {{"KASCII" "^"} {}} {
+    cursorbol
+  }
   {{"KASCII" "$"} {}} {
     cursoreol % moverse al fin de línea
   }
@@ -159,11 +171,13 @@ initwtm %getcommand
     % mode insert al final de la línea
     /mode /insert store % cambio modo insert
     getypos getline length setxpos % voy al fin de línea
+    /insert_mode msg setst
   }
   {{"KASCII" "a"} {}} {
     % mode insert a la derecha
     /mode /insert store % cambio modo insert
     getxpos 1 + setxpos
+    /insert_mode msg setst
   }
   {{"KASCII" "e"} {}} {
     "e" movelocation
@@ -174,11 +188,13 @@ initwtm %getcommand
   {{"KASCII" "I"} {}} {
     % mode insert
     /mode /insert store
-    0 setxpos
+    /insert_mode msg setst
+    cursorbol
   }
   {{"KASCII" "i"} {}} {
     % mode insert
     /mode /insert store
+    /insert_mode msg setst
   }
   {{"KASCII" "J"} {}} {
     % join lines
@@ -203,10 +219,12 @@ initwtm %getcommand
   {{"KASCII" "O"} {}} {
     0 openline
     /mode /insert store
+    /insert_mode msg setst
   }
   {{"KASCII" "o"} {}} {
     1 openline
     /mode /insert store
+    /insert_mode msg setst
   }
   % TODO
 >> def
@@ -292,7 +310,39 @@ initwtm %getcommand
   } ifelse
 } def
 
+/parseargs {
+  begin
+    /prev "" def
+    /args load {
+      /opt exch def
+      /cont 0 def
+      % -s file:
+      prev "-s" eq {
+	/cont 1 def
+	opt run
+      } if
+      cont not  opt "-s" eq and {/cont 1 def} if
+      % --help / -h
+      cont not  opt "--help" eq opt "-h" eq or and {
+	/cont 1 def
+	0 /options msg setline
+	% TODO check for new file
+      } if
+      % otherwise load file:
+      cont not {
+	% TODO openfile (creating new window)
+      } if
+      % the only supported option is -s to load a script:
+      /prev opt def
+    } forall
+  end
+} def
+
 %%%%%% MAIN LOOP %%%%%%:
+
+parseargs
+
+showwtm
 
 {
   %exit % descomente para ir a terminal de postscript.
@@ -328,6 +378,7 @@ initwtm %getcommand
       } if
       dup 0 get 0 get "KEsc" eq {
 	/mode /normal store
+	"" setst
 	cursorleft
       } if
       % stack: [key mods]
