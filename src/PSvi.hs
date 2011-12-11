@@ -408,7 +408,7 @@ psOpIfelse st = ensureNArgs "ifelse" 3 st $ case stack st of
 
 psOpFor :: PSState -> IO (Either String PSState)
 psOpFor st = ensureNArgs "for" 3 st $ case stack st of
-    (proc@(PSList _):l@(PSInt lim):i@(PSInt inc):b@(PSInt beg):ss) -> if lim < beg
+    (proc@(PSList _):l@(PSInt lim):i@(PSInt inc):b@(PSInt beg):ss) -> if inc >= 0 && lim < beg || inc <=0 && beg > lim
         then return $ Right st {stack = ss}
         else do
             e <- psExec st {stack = b:ss} proc
@@ -625,12 +625,14 @@ psOpRegexp st = ensureNArgs "regexp" 2 st $ case stack st of
     (PSString subj:PSString re:ss) -> do
         res <- PCRE.compile PCRE.compBlank PCRE.execBlank re
         case res of
-            Left _ -> return $ Right $ st {stack = PSInt 0 : stack st}
+            Left _ -> return $ Right $ st {stack = PSInt (-1) : stack st}
             Right regex -> do
                 res <- PCRE.regexec regex subj
                 return $ case res of
-                    Left _ -> Right $ st {stack = PSInt 0 : ss}
-                    Right result -> Right $ st {stack = PSInt 1 : ss}
+                    Left _ -> Right $ st {stack = PSInt (-1) : ss}
+                    Right res -> case res of
+                        Nothing -> Right $ st {stack = PSInt (-1) : ss}
+                        Just (pre,match,_,_) -> Right $ st {stack = PSInt (length match): PSInt (length pre) : ss}
     _ -> return $ Left "psInterp error: regexp: types not string, string on top of the stack"
 
 psOpRegsub :: PSState -> IO (Either String PSState)

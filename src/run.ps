@@ -39,10 +39,38 @@ initwtm %getcommand
     % TODO
   }
   "e" {
-    % TODO
+    /eof 0 def /x2 x def /y2 y def
+    /runnext {
+      /line y getline def
+      /x x 1 + dup line length gt {pop line length} if def
+      ".*?\\w\\b"
+      line x line length getinterval
+      regexp dup 0 ge {
+	exch pop % keep the top value, discard the other
+	/x exch x + 1 - def
+      } {
+	pop
+	% try with next line if it exists
+	/x 0 def
+	/y y 1 + def
+	y getysize lt {runnext} {/eof 1 def} ifelse
+      } ifelse
+    } def
+    runnext
+    eof {
+      % recover old values
+      /x x2 def /y y2 def
+    } if
   }
   "f" {
-    % TODO
+    /line y getline def
+    /c getliteralkey def
+    % ejecuto for(i=min(x,length(line)); i>=0; i--):
+    x dup line length ge {pop line length 1 -} if
+    -1 0 {
+      /i exch def
+      line i get c eq {/x i def exit} if % if (c==line[i]){x=i; break}
+    } for
   }
   "t" {
     /line y getline def
@@ -61,11 +89,22 @@ initwtm %getcommand
   "$" {
     /x y getline length def
   }
->>
+>> def
 
 /getlocationkey {
   % TODO
-}
+} def
+
+% locationtypestr movelocation -
+/movelocation {
+  begin
+    /x getxpos def /y getypos def
+    dup locationbindings exch known {
+      locationbindings exch get exec
+      y setypos x setxpos
+    } {pop} ifelse
+  end
+} def
 
 /getlocation {[getxpos getypos]} def
 /setlocation {exec setypos setxpos} def
@@ -125,6 +164,9 @@ initwtm %getcommand
     % mode insert a la derecha
     /mode /insert store % cambio modo insert
     getxpos 1 + setxpos
+  }
+  {{"KASCII" "e"} {}} {
+    "e" movelocation
   }
   {{"KASCII" "h"} {}} {
     cursorleft
@@ -260,7 +302,7 @@ initwtm %getcommand
     dup normalkeybindings exch known {
       % si está en el diccionario lo ejecuta:
       normalkeybindings exch get exec
-    } if
+    } {pop} ifelse
   } {
     mode /insert eq {
       dup 0 get 0 get % stack: [key mods]

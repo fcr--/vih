@@ -332,6 +332,17 @@ Operators (sorted by name):
 
     Exits the current program.
 
+  regexp:	re subject regexp index count
+				  -1 (if not found
+
+    Matches the regular expression re against subject, and returns -1 if the
+    match failed, or two integers >= 0 such that:
+
+      subject re subject regexp dup 0 ge {getinterval} {pop ""} ifelse
+
+    this code leaves an empty string if the text didn't match, or the matched
+    part of the string otherwise.
+
   repeat:	int1 proc repeat -
 
     Pop int1 and proc, and run proc int1 times.
