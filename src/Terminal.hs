@@ -32,7 +32,7 @@ initWTM = do
     v <- mkVty
     show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
-    let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "", vty = v}
+    let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
     return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
     
 --Data type that wraps the command line attributes
@@ -72,7 +72,7 @@ cbarras = def_attr `with_style` reverse_video `with_fore_color` red
 
 --Function to resize the current layout to fit the new window size
 resizeLayout::Int->Int->WTManager->WTManager
-resizeLayout w h wtm = wtm{lo = (resizeLo w (h-3)) (lo wtm),wtmH = h-3, wtmW = w}
+resizeLayout w h wtm = wtm{lo = (resizeLo w (h-2)) (lo wtm),wtmH = h-2, wtmW = w}
 
 resizeLo :: Int -> Int -> Layout -> Layout
 resizeLo w h lo = case lo of
@@ -100,7 +100,7 @@ showWTM wtm = do
   (nwtm,im) <- armarIm (fromIntegral w) (fromIntegral h) wtm 
   update (vty nwtm) (pic_for_image im)
   show_cursor ( terminal $ vty nwtm)
-  return nwtm{wtmW =fromIntegral w, wtmH = fromIntegral (h - 3)}
+  return nwtm{wtmW =fromIntegral w, wtmH = fromIntegral (h - 2)}
 
 
 --Function to get the next event from the Vty
@@ -117,46 +117,47 @@ getKey wtm = do nEv <- next_event (vty wtm)
 getCommand :: WTManager -> IO (WTManager,Maybe String)
 getCommand wtm = let vty' = (vty wtm) in
                  do bnds <- display_bounds (terminal vty')
-                    getCommand' line wtm (getW bnds) (getW bnds)
+                    getCommand' line wtm (getW bnds) (getH bnds)
     where line = CM {comm = ":", pos = 1}
 
 --Function that asks continully for the next character of the command until it ends and return the string that composes it
 getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (WTManager,Maybe String)
 getCommand' cl wtm w h = do
---    set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
---    show_cursor (terminal $ vty wtm)
     updateVtyCommand wtm (comm cl) w h
+    set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
+    show_cursor (terminal $ vty wtm)
     (nEv,wtm') <- getKey wtm
     case nEv of
-                             EvKey (KASCII c) _ -> let newCL = addCharComm cl c
-                                                   in do updateVtyCommand wtm' (comm newCL) w h
-                                                         getCommand' newCL wtm' w h
-                             EvKey (KEnter) _ -> do updateVtyCommand wtm "" w h
-                                                    return (wtm', Just $ comm cl)
-                             EvKey (KBS) _ -> let newCL = suprComm cl
-                                              in do updateVtyCommand wtm' (comm newCL) w h
-                                                    getCommand' newCL wtm' w h
-                             EvKey (KDel) _ -> let newCL = delComm cl
-                                               in do updateVtyCommand wtm' (comm newCL) w h
-                                                     getCommand' newCL wtm' w h
-                             EvKey (KLeft) _ -> let cur = pos cl
-                                                in if cur <= 1
-                                                   then getCommand' cl wtm' w h
-                                                   else getCommand' (cl {pos = cur - 1}) wtm' w h
-                             EvKey (KRight) _ -> let cur = pos cl
-                                                 in if cur == length (comm cl)
-                                                    then getCommand' cl wtm' w h
-                                                    else getCommand' (cl {pos = cur + 1}) wtm' w h 
-                             EvKey (KEsc) _ -> do nwtm <- showWTM wtm'
-                                                  return (nwtm,Nothing)
-                             EvResize nx ny -> do let nwt = resizeLayout nx ny wtm'
-                                                  showWTM (nwt)
-                                                  getCommand' cl nwt w h  
-                             _ -> getCommand' cl wtm w h
+        EvKey (KASCII c) _ -> let newCL = addCharComm cl c
+                              in do updateVtyCommand wtm' (comm newCL) w h
+                                    getCommand' newCL wtm' w h
+        EvKey (KEnter) _ -> do updateVtyCommand wtm "" w h
+                               return (wtm', Just $ comm cl)
+        EvKey (KBS) _ -> let newCL = suprComm cl
+                         in do updateVtyCommand wtm' (comm newCL) w h
+                               getCommand' newCL wtm' w h
+        EvKey (KDel) _ -> let newCL = delComm cl
+                          in do updateVtyCommand wtm' (comm newCL) w h
+                                getCommand' newCL wtm' w h
+        EvKey (KLeft) _ -> let cur = pos cl
+                           in if cur <= 1
+                              then getCommand' cl wtm' w h
+                              else getCommand' (cl {pos = cur - 1}) wtm' w h
+        EvKey (KRight) _ -> let cur = pos cl
+                            in if cur == length (comm cl)
+                               then getCommand' cl wtm' w h
+                               else getCommand' (cl {pos = cur + 1}) wtm' w h 
+        EvKey (KEsc) _ -> do nwtm <- showWTM wtm'
+                             return (nwtm,Nothing)
+        EvResize nx ny -> do let nwt = resizeLayout nx ny wtm'
+                             showWTM (nwt)
+                             getCommand' cl nwt w h  
+        _ -> getCommand' cl wtm w h
 
 --Function that updates the Vty on screen with the given String placed on the command line
 updateVtyCommand :: WTManager -> String -> Word -> Word -> IO ()
-updateVtyCommand wtm comm w h = update (vty wtm) (pic_for_image $ armarCommand comm (fromIntegral w) (fromIntegral h) wtm)
+updateVtyCommand wtm comm w h = do
+    update (vty wtm) (pic_for_image $ armarCommand comm (fromIntegral w) (fromIntegral h) wtm)
 
 --Function that adds a character to the command line at the current position (Cursor)
 addCharComm :: CommandLine -> Char -> CommandLine
@@ -179,20 +180,19 @@ delComm cl = let (a,b) = splitAt (pos cl) (comm cl)
 armarIm :: Word -> Word -> WTManager -> IO (WTManager,Image)
 armarIm w h wtm = return (printWTM wtm) >>= \(nwtm,im)->return (nwtm, ab im) 
     where 
-        ab im = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                 else bordeSuperior w
-                      <->im
-                      <->string def_attr (stLine wtm)
-                      <->bordeInferior w
+    ab im = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
+	     else im <-> bordeInferior w <-> string def_attr (stLine wtm)
         
 --Function that sets the string holding in the status line
 setSt stl wtm = wtm {stLine = stl}
 
 --Function that paints the command line with the accumulative string given
 armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con una altura de menos de 4 caracteres"
-                         else bordeInferior w <-> snd (printWTM wtm) <-> bordeInferior w <-> string (def_attr `with_style` reverse_video) (take w $ s ++ repeat ' ')
+                         else im <-> bordeInferior w <-> string def_attr (take w $ s ++ repeat ' ')
+    where
+    im = crop (toEnum w, toEnum h-3) $ snd $ printWTM wtm
                           
-bordeSuperior w = char_fill dum '-' w 1
+--bordeSuperior w = char_fill dum '-' w 1 -- VI no llevar borde superior!
 bordeInferior w = char_fill dum '-' w 1
 -- TODO: mirar...
 printNoWin w h |(w<1) || (h<1) = empty_image
@@ -222,7 +222,7 @@ newWin horiz wtm = do
                 (newBM,bnum) <- newBuffer (bm wtm) Nothing
                 (DisplayRegion w h) <- display_bounds (terminal $vty wtm)
                 newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) (curwdw wtm)}
-                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout (fromIntegral w) ( (fromIntegral h) - 2) wtm
+                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout (fromIntegral w) ( (fromIntegral h) - 1) wtm
                 showWTM lWTM
                 return lWTM
 
@@ -258,3 +258,5 @@ splitLoX param l [x] |param = case l of
                                 (NoWin (w,h)) -> resizeLo w h $ Vspan w h [(NoWin (w,h),1),(NoWin (w,h),1)]
     where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
                                    |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
+
+-- vi: et sw=4
