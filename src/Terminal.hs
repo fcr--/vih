@@ -30,7 +30,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
 initWTM :: IO WTManager
 initWTM = do
     v <- mkVty
-    show_cursor $ terminal v
+    --show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
     let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
     return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
@@ -99,7 +99,7 @@ showWTM wtm = do
   (DisplayRegion w h) <- display_bounds $ terminal (vty wtm)
   (nwtm,im) <- armarIm (fromIntegral w) (fromIntegral h) wtm 
   update (vty nwtm) (pic_for_image im)
-  show_cursor ( terminal $ vty nwtm)
+  --show_cursor ( terminal $ vty nwtm)
   return nwtm{wtmW =fromIntegral w, wtmH = fromIntegral (h - 2)}
 
 
@@ -127,6 +127,7 @@ getCommand' cl wtm w h = do
     set_cursor_pos (terminal $ vty wtm) (toEnum $ pos cl) (h-1)
     show_cursor (terminal $ vty wtm)
     (nEv,wtm') <- getKey wtm
+    hide_cursor (terminal $ vty wtm)
     case nEv of
         EvKey (KASCII c) _ -> let newCL = addCharComm cl c
                               in do updateVtyCommand wtm' (comm newCL) w h
