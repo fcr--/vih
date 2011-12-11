@@ -824,11 +824,13 @@ psOpGetkey st = ensureWTM "getkey" st $ do
         (if elem MMeta mods then [PSString "MMeta"] else [])
 
 psOpGetcommand :: PSState -> IO (Either String PSState)
-psOpGetcommand st = ensureWTM "getcommand" st $ do
-        (wt,res) <- getCommand $ fromJust $ wtm st
+psOpGetcommand st = ensureWTM "getcommand" st $ ensureNArgs "getcommand" 1 st $ case stack st of
+    (PSString prompt : ss) -> do
+        (wt,res) <- getCommand prompt $ fromJust $ wtm st
         case res of
             Just str -> return $ Right st {wtm = Just wt,stack = PSInt 1 : PSString str : stack st}
             Nothing -> return $ Right st {wtm = Just wt,stack = PSInt 0 : stack st}
+    _ ->return $ Left "psInterp error: getcommand: not a string on top of the stack"
 
 psOpSetst :: PSState -> IO (Either String PSState)
 psOpSetst st = ensureWTM "setst" st $ ensureNArgs "setst" 1 st $ case stack st of

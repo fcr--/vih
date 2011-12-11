@@ -158,7 +158,7 @@ initwtm %getcommand
     } ifelse
   }
   {{"KASCII" ":"} {}} {
-    getcommand
+    ":" getcommand
     {interpcommand} if
   }
   {{"KASCII" "^"} {}} {
@@ -171,13 +171,13 @@ initwtm %getcommand
     % mode insert al final de la línea
     /mode /insert store % cambio modo insert
     getypos getline length setxpos % voy al fin de línea
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
   }
   {{"KASCII" "a"} {}} {
     % mode insert a la derecha
     /mode /insert store % cambio modo insert
     getxpos 1 + setxpos
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
   }
   {{"KASCII" "e"} {}} {
     "e" movelocation
@@ -188,13 +188,13 @@ initwtm %getcommand
   {{"KASCII" "I"} {}} {
     % mode insert
     /mode /insert store
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
     cursorbol
   }
   {{"KASCII" "i"} {}} {
     % mode insert
     /mode /insert store
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
   }
   {{"KASCII" "J"} {}} {
     % join lines
@@ -219,12 +219,12 @@ initwtm %getcommand
   {{"KASCII" "O"} {}} {
     0 openline
     /mode /insert store
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
   }
   {{"KASCII" "o"} {}} {
     1 openline
     /mode /insert store
-    /insert_mode msg setst
+    /insert_mode msg setst showwtm
   }
   % TODO
 >> def
@@ -378,7 +378,7 @@ showwtm
       } if
       dup 0 get 0 get "KEsc" eq {
 	/mode /normal store
-	"" setst
+	"" setst showwtm
 	cursorleft
       } if
       % stack: [key mods]

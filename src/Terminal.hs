@@ -114,11 +114,11 @@ getKey wtm = do nEv <- next_event (vty wtm)
                   _ -> return (nEv,wtm)
 
 --Function to get a command from the command line
-getCommand :: WTManager -> IO (WTManager,Maybe String)
-getCommand wtm = let vty' = (vty wtm) in
-                 do bnds <- display_bounds (terminal vty')
-                    getCommand' line wtm (getW bnds) (getH bnds)
-    where line = CM {comm = ":", pos = 1}
+getCommand :: String -> WTManager -> IO (WTManager,Maybe String)
+getCommand prompt wtm = let vty' = (vty wtm) in
+                        do bnds <- display_bounds (terminal vty')
+                           getCommand' line wtm (getW bnds) (getH bnds)
+    where line = CM {comm = prompt, pos = 1}
 
 --Function that asks continully for the next character of the command until it ends and return the string that composes it
 getCommand' :: CommandLine -> WTManager -> Word -> Word -> IO (WTManager,Maybe String)
