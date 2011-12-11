@@ -173,7 +173,7 @@ printBuff :: Buffer  -> (Int,Int) -> (Image,Buffer)
 printBuff buf (w,h)	|	d > h		=	undefined -- ver en qué sublínea está el cursor
 			|	otherwise	=	(vert_cat $ take h $ reverse ( take (wp' - div (getX buf) w) p' )  ++ l' ++ s' ++ noqui , buf { winPoint =  wp'})
 	where
-		noqui = repeat (string def_attr ";P")
+		noqui = repeat (string def_attr "~")
 		wp = winPoint buf
 		wp' = min' 0 p' $ min wp (h-d)
 		(p,l,s) = highlight buf
