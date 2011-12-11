@@ -134,6 +134,12 @@ Operators (sorted by name):
 
     Associate key and value in current dictionary.
 
+  deleteline:	- deleteline -
+
+    This deletes the current line on the current buffer. After that the cursor
+    will be located on an unspecified line, so extra care should be taken. To
+    use this command initwtm should be previously called.
+
   div:	int1 int2 div int
 
     (Integer) Divide int1 by int2, and push back the result.
@@ -217,6 +223,15 @@ Operators (sorted by name):
     If it's a list, return the index-th element of the list. The index must
     be an integer between 0 and length(list)-1, or a "rangecheck" error occurs.
 
+  getcommand:	prompt getcommand result 1  (if Enter is pressed)
+				  "" 0      (if Esc or ^C pressed)
+
+    This operator pops the prompt from the stack, asks the user a string
+    showing that prompt, placing the cursor on the last line, and waiting
+    until the user presses enter or the escape key.
+
+    To use this command initwtm should be previously called.
+
   getinterval:	list index count   getinterval sublist
 		string index count getinterval substring
 
@@ -233,6 +248,34 @@ Operators (sorted by name):
     For instance the first list may be: {"KEsc"}, {"KFun" 5}, {"KASCII" "j"},
     etc... and the seconds list may have one or both of the strings: "MCtrl",
     "MMeta" in it, and in that order.
+
+  getline:	num getline string
+
+    Pops the line number of the current buffer from the stack, and pushes back
+    a string with its text. To use this command initwtm should be previously
+    called.
+
+  getxpos:	- getxpos num
+
+    Pushes back the cursor position in the current line of the current buffer.
+    It's 0 based, so a 0 is returned if the cursor is located on the first char
+    of the line. To use this command initwtm should be previously called.
+
+  getxsize:	- getxsize num
+
+    Return the number of characters in the current line of the current buffer.
+    To use this command initwtm should be previously called.
+
+  getypos:	- getxpos num
+
+    Pushes back the line number of the current line of the current buffer.
+    It's 0 based, so a 0 is returned if the cursor is located on top of the
+    file. To use this command initwtm should be previously called.
+
+  getysize:	- getysize num
+
+    Return the number of lines in the current buffer. This is always at least 1.
+    To use this command initwtm should be previously called.
 
   globaldict:	- globaldict dict
 
@@ -315,6 +358,23 @@ Operators (sorted by name):
     Pops an element and pushes back 1 if the dictionary or list is empty, or
     if the string is equal to "".
 
+  openfile:	filename openfile -
+
+    This operand will try to open the file with that name, if it's successfully
+    loaded the content of the current buffer is replaced with the file
+    contents. However, if the file can't be read, the content of the current
+    buffer is deleted. To use this command initwtm should be previously called.
+
+    After calling this operator, the filename is associated with the current
+    buffer.
+
+  openline:	after openline -
+
+    This creates a new line in the current buffer. If after is different than 0
+    it's created after the current line, otherwise it's created before the
+    current line. In any case the cursor is placed on the new open line. To use
+    this command initwtm should be previously called.
+
   or:	int1 int2 or int
 
     Do a bitwise or of int1 and int2, and push back the result.
@@ -343,6 +403,16 @@ Operators (sorted by name):
     this code leaves an empty string if the text didn't match, or the matched
     part of the string otherwise.
 
+  regsub:	re subj replstr regsub str
+
+    Matches re against subj, and if it's matched, the matched substring is
+    replaced according to replstr. Besides normal characters, in replstr may
+    appear backreferences \1 to \9, which should be escaped e.g: "\\1", also,
+    the & character may appear working as a reference to the whole matched
+    part of subj. If you want a literal & character, you should escape it.
+
+    "l+" "olla" "<&>" regsub     =>     "o<ll>a"
+
   repeat:	int1 proc repeat -
 
     Pop int1 and proc, and run proc int1 times.
@@ -353,6 +423,10 @@ Operators (sorted by name):
 
     Example: 1 2 3 4 5 6 7  5 2 roll          =>   1 2 6 7 3 4 5
     Example: "a" "b" "c" "d"  3 -1 roll pop   =>   "a" "c" "d"
+
+  run:	filename run -
+
+    Load a file (if it exists) and execute it.
 
   search:	haystack needle search post match pre 1  (if found)
 				       haystack 0          (otherwise)
@@ -368,6 +442,37 @@ Operators (sorted by name):
 
     Pops a dictionary from the top of the stack, and stores that dictionary
     as the global one.
+
+  setline:	num txt setline -
+
+    This operator pops the line number and a string, and modifies the line
+    with that number in the current buffer, overwriting its text with the
+    popped one. To use this command initwtm should be previously called.
+
+  setst:	status setst -
+
+    This operator sets the given text on the status bar. After calling this
+    operator, a call to showwtm may be needed. To use this command initwtm
+    should be previously called.
+
+  setxpos:	num setxpos -
+
+    This operator places the cursor on the num char of the current line. This
+    number must be greater or equal than 0, and should be less or equal than
+    the number of characters of the current line. To use this command initwtm
+    should be previously called.
+
+  setypos:	num setypos -
+
+    This operator places the cursor on the line with number num. This number
+    must be greater or equal than 0, and must be less than the number of
+    characters of the current line. To use this command initwtm should be
+    previously called.
+
+  showwtm:	- showwtm -
+
+    This command refreshes the terminal. It's useful after calling setst.
+    To use this command initwtm should be previously called.
 
   store:	key value store -
 
@@ -422,6 +527,24 @@ Operators (sorted by name):
     up to the global dict. If it's found, this pushes back the dictionary
     where it was found, and a 1. Otherwise it just pushes a 0.
 
+  windown:	- windown -
+
+    Scroll downwards one line in the current buffer. To use this command
+    initwtm should be previously called.
+
+  winup:	- winup -
+
+    Scrolls upwards one line in the current buffer. To use this command initwtm
+    should be previously called.
+
+  writefile:	optionalfilename writefile -
+
+    optionalfilename may be an empty list, or a list with one string, the
+    filename. If the list is empty then the this operator tries to write the
+    current buffer with its associated filename (see openfile).
+
+    To use this command initwtm should be previously called.
+
   xor:	int1 int2 xor int
 
     Do a bitwise xor of int1 and int2, and push back the result.
@@ -470,7 +593,7 @@ Operands ignored from the postscript standard:
   readhexstring, ¿readline?, readonly, ¿readstring?, realtime, rectclip,
   rectfill, rectstroke, removeall, removeglyphs, ¿renamefile?, ¿resetfile?,
   resourceforall, resourcestatus, restore, reversepath, revision, rlineto,
-  rmoveto, rootfont, rotate, round, rrand, ¿run?, save, scale, scalefont,
+  rmoveto, rootfont, rotate, round, rrand, save, scale, scalefont,
   scheck, selectfont, serialnumber, serverdict, setbbox, setblackgeneration,
   setcachedevice, setcachedevice2, setcachelimit, setcacheparams, setcharwidth,
   setcmykcolor, setcolor, setcolorrendering, setcolorscreen, setcolorspace,
