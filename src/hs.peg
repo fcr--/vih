@@ -1,6 +1,4 @@
-all = (comment / string / (' ' / '
-' / !.) reserved (' ' / '
-' / !.) / Cons / float / plain / . )*;
+all = (comment / string / reserved (' ' / '\n' / (!.) ) / Cons / float / plain / . )*;
 comment = "--" (todo / !'
 '.)* / multicomment  ; 
 multicomment = "{-" ("--" / todo / multicomment / !("-}").)* "-}" ? ;
