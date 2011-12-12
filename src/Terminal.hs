@@ -35,8 +35,7 @@ initWTM = do
     let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
     wtm' <- newWin True wtm --  TODO : DE MUESTRA ESTO
     wtm'' <- newWin False wtm'
-    wtm3 <- newWin False wtm''
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm3
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm''
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
