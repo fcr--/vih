@@ -2,8 +2,8 @@
 {-#OPTIONS -XMultiParamTypeClasses #-}
 
 module Terminal where
-import BufferManager(BManager,newBM,newBuffer,printWinBM)
-import Control.Concurrent.STM
+import BufferManager(BManager,newBM,newBuffer,printWinBM,openFileBM)
+import Debug.Trace
 import Data.Map(Map,(!),singleton,keys,insert)
 import Graphics.Vty
 import Data.Word
@@ -32,8 +32,10 @@ initWTM = do
     v <- mkVty
     --show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
-    let wtm = WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm
+    let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
+    wtm' <- newWin True wtm --  TODO : DE MUESTRA ESTO
+    wtm'' <- newWin False wtm'
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm''
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -197,10 +199,10 @@ armarCommand s w h wtm = if h<4 then string def_attr "No se puede visualizar con
 bordeInferior w = char_fill dum '-' w 1
 -- TODO: mirar...
 printNoWin w h |(w<1) || (h<1) = empty_image
-               | otherwise = (string def_attr s <|> char_fill def_attr '#' (w-length s) 1) <-> char_fill dum '-' w (h-2)
+               | otherwise = (string def_attr s <|> char_fill def_attr '#' (w-length s) 1) <-> char_fill dum '-' w (h-2) <-> bordeInferior w
                     where
                         s = take w "Ventana vacia. Utilice el comando TODO :agregar comando"
-printWin w h = printNoWin w h
+printWin w h = error "printWin"
 
 printWTM :: WTManager -> (WTManager,Image)
 printWTM wtm = (\(a,b) -> (b,a)) $ runState (printLayout (lo wtm)) (wtm)
@@ -209,55 +211,56 @@ printControl lOut = string def_attr $ show lOut
 printLayout :: Layout -> State WTManager Image
 printLayout lOut = case lOut of
                         NoWin (x,y) -> return $ printNoWin x y
-                        (Window (x,y) num) -> gets (\wm-> printWinBM (bm wm) num (x,y)) >>= \(im,nbm) -> modify (\wtm -> wtm{bm = nbm}) >> return im
-                        (Hspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <|> barraVert y <|> b)) empty_image
-                        (Vspan x y xsL) -> mapM (\(lo,h)->printLayout lo) xsL >>= foldM (\a b -> return (a <-> barraHoriz x <-> b)) empty_image
+                        (Window (x,y) num) -> gets (\wm-> printWinBM (bm wm) num (x,y)) >>= \(im,nbm) ->  modify (\wtm -> wtm{bm = nbm}) >> return im
+                        (Hspan x y xsL) -> mapM (printLayout.fst) xsL >>= return . ( foldr1 (\a b -> a <|> barraVert y <|> b ) )
+                        (Vspan x y xsL) -> mapM (printLayout.fst) xsL >>= return . ( foldr1 (\a b -> a <-> barraHoriz x <-> b) )
     where barraVert y = char_fill cbarras '|' 1 y
           barraHoriz x = char_fill cbarras '-' x 1
 
 --Imprimir un buffer en una ventana
 
+-- TODO : CORREGIR EL TEMA DE LA VENTANA EN USO, curwdw es el CAMINO a la ventana en uso.
 --Abrir ventana nueva
 newWin :: Bool {- horizontal? -} -> WTManager -> IO WTManager
-newWin horiz wtm = do
-                (newBM,bnum) <- newBuffer (bm wtm) Nothing
+newWin horiz wtm' = do
+                (newbm,bnum) <- newBuffer (bm wtm') Nothing
+                let wtm = wtm' { bm = newbm }
                 (DisplayRegion w h) <- display_bounds (terminal $vty wtm)
-                newWTM <- return $ wtm{lo = splitLoX horiz (lo wtm) (curwdw wtm),curwdw = (\cur -> if (length cur) == 1 then [1,0] else (tail ( tail cur))++[1+last (tail cur),0]) (curwdw wtm)}
-                lWTM <- return $ assocBuffer bnum (curwdw wtm) $ resizeLayout (fromIntegral w) ( (fromIntegral h) - 1) wtm
+                let lWTM = resizeLayout (fromIntegral w) (fromIntegral h) (splitX horiz bnum wtm)
                 showWTM lWTM
-                return lWTM
-
---Asociar buffer a ventana
-assocBuffer :: Int -> [Int] -> WTManager -> WTManager
-assocBuffer bId wId wtm = wtm{lo = asBuf bId wId (lo wtm)}
-
-asBuf :: Int -> [Int] -> Layout -> Layout
-asBuf bId (w:ws) lo = case lo of
-                        (Window (x,y) z) -> Window (x,y) bId
-                        (NoWin (x,y)) -> Window (x,y) bId
-                        (Vspan w h lst) -> Vspan w h (take w lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop (w+1) lst)
-                        (Hspan w h lst) -> Hspan w h (take w lst ++ [(\(l,s) -> (asBuf bId ws l,s)) (lst!!w)] ++ drop (w+1) lst)
 
 --Hacer split Horizontal con param = True, vertical con param = False
-splitX :: Bool -> WTManager -> WTManager
-splitX param wtm = wtm{ lo = splitLoX param (lo wtm) cw, curwdw = (\xs -> init xs ++ (map (+1) [last xs])) cw } where cw = curwdw wtm
+-- Int = buffer number
+splitX :: Bool -> Int -> WTManager -> WTManager
+splitX param bn wtm = case changed cw spl of
+                        True -> wtm{ lo = spl, curwdw = (\xs -> xs ++ [1]) cw}
+                        _ -> wtm {lo = spl, curwdw = (\xs -> init xs ++ [1 + last xs]) cw } 
+    where
+            cw = curwdw wtm
+            spl = splitLoX param bn (lo wtm) cw 
 
-splitLoX :: Bool -> Layout -> [Int] -> Layout
-splitLoX param l (x: xs@(y':ys)) = case l of
-                (Vspan w h lst) -> Vspan w h ((take x) lst ++ [(\(lay,height) -> (splitLoX param lay xs,height)) (lst!!x)] ++ drop (x+1) lst)
-                (Hspan w h lst) -> Hspan w h ((take x) lst ++ [(\(lay,width) -> (splitLoX param lay xs,width)) (lst!!x)] ++ drop (x+1) lst)
-                (Window (x,y) z) -> undefined -- Window (x,y) z
-                (NoWin (x,y)) ->  undefined -- NoWin (x,y)
-splitLoX param l [x] |param = case l of
-                                (Vspan w h lst) -> Vspan w h (take x lst ++ [(splitSpan param (lst!!x) w)] ++ (drop (x+1) lst))
-                                (Hspan w h lst) -> Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(NoWin (0,0),0)] ++  drop x lst))
-                                (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,1),(NoWin (0,0),0)]
+changed :: [Int] -> Layout -> Bool
+changed (x:xs) (Vspan _ _ lst)  = changed xs ( fst $ lst !! x )
+changed (x:xs) (Hspan _ _ lst)  = changed xs ( fst $ lst !! x )
+changed _ (Hspan _ _ lst)       = True
+changed _ (Vspan _ _ lst)       = True
+changed _ _ = False
+
+splitLoX :: Bool -> Int -> Layout -> [Int] -> Layout
+splitLoX param bn l (x: xs@(y':ys)) = case l of
+                (Vspan w h lst) -> Vspan w h ((take x) lst ++ [(\(lay,height) -> (splitLoX param bn lay xs,height)) (lst!!x)] ++ drop (x+1) lst)
+                (Hspan w h lst) -> Hspan w h ((take x) lst ++ [(\(lay,width) -> (splitLoX param bn lay xs,width)) (lst!!x)] ++ drop (x+1) lst)
+                (Window (x,y) z) -> error "splitLoX : Window (x,y) z" -- Window (x,y)
+                (NoWin (x,y)) -> error "splitLoX : NoWin (x,y)" -- NoWin (x,y)
+splitLoX param bn l [x] |param = case l of
+                                (Vspan w h lst) -> resizeLo w h $  Vspan w h (take x lst ++ [(splitSpan param bn (lst!!x) w)] ++ (drop (x+1) lst))
+                                (Hspan w h lst) -> resizeLo w h $  Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(Window (undefined,undefined) 0, undefined)] ++  drop x lst))
+                                (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
                      |not param = case l of
-                                (Vspan w h lst) -> Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(NoWin (0,0),0)] ++ drop x lst))
-                                (Hspan w h lst) -> Hspan w h (take x lst ++ [(splitSpan param (lst!!x) h)] ++ (drop (x+1) lst))
-                                (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,1),(NoWin (0,0),0)] 
-                                (NoWin (w,h)) -> resizeLo w h $ Vspan w h [(NoWin (w,h),1),(NoWin (w,h),1)]
-    where splitSpan param (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(NoWin (1,1), 1)]),t)
-                                   |not param = (resizeLo s t (Vspan s t [(lo,1),(NoWin (1,1), 1)]),t)
+                                (Vspan w h lst) -> resizeLo w h $ Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(Window (w,h) undefined,undefined)] ++ drop x lst))
+                                (Hspan w h lst) -> resizeLo w h $ Hspan w h (take x lst ++ [(splitSpan param bn (lst!!x) h)] ++ (drop (x+1) lst))
+                                (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
+    where splitSpan  param bn (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
+                                       |not param = (resizeLo s t (Vspan s t [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
 
 -- vi: et sw=4

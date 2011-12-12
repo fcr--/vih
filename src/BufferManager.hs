@@ -1,4 +1,5 @@
 module BufferManager where
+import Debug.Trace
 import qualified Buffer as B
 import Data.Map(Map,(!),singleton,keys,insert,lookup,size,empty,delete,member)
 import Data.Maybe(fromJust)

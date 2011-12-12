@@ -3,6 +3,7 @@ import Terminal
 import Control.Monad.Reader
 import Control.Monad.State
 import BufferManager
+import Debug.Trace
 import Graphics.Vty
 import Prelude hiding (readFile)
 -- Operaciones para navegar el archivo actual
@@ -49,13 +50,16 @@ bmOp f wtm = runReader (nav (curwdw wtm) (lo wtm)) (bm wtm)
                              (Vspan w h lst) -> nav xs (fst $lst!!x)
                              (Window (x,y) z) -> ask >>= \bm -> return $ f bm z
                              _ -> undefined
+          nav _ (Window _ z) = ask >>= \bm -> return $ f bm z
 -- Para ejecutar una funcion que modifica el buffer local y el layout local
 loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
+loop _ _ wtm  | trace (show $ curwdw wtm) True = undefined
 loOp f g wtm = let (retf, (bmNew,z)) = runState (navIO (curwdw wtm) (lo wtm)) (bm,0) in (wtm{lo = retf},f (bm wtm) z)
     where navIO (x:xs) lo = 
               case lo of (Hspan w h lst) -> (\(l,s)-> navIO xs l >>= \a-> return ((a,s)) ) (lst!!x) >>= \obj-> return $ Hspan w h (take x lst ++ [obj] ++ drop (x+1) lst)
                          (Vspan w h lst) -> (\(l,s)-> navIO xs l >>= \a-> return ((a,s)) ) (lst!!x) >>= \obj-> return $ Vspan w h (take x lst ++ [obj] ++ drop (x+1) lst)
                          win@(Window (x,y) z) -> return (g win) >>= \cosa -> modify (\(a,b)->(a,z)) >> return cosa
+          navIO _ win@(Window _ z) = return (g win) >>= \cosa -> modify (\(a,b)->(a,z)) >> return cosa
 
 getBuffSize wtm = getBuffSizeBM (bm wtm)
 
