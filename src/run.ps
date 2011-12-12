@@ -58,7 +58,24 @@ initwtm %getcommand
     % TODO
   }
   "w" {
-    % TODO
+    /first 1 def
+    /runnext {
+      /line y getline def
+      /x x dup line length gt {pop line length} if def
+      x 0 eq  first not and {".*?\\w"} {".*?\\W\\w"} ifelse
+      line x line length getinterval
+      regexp dup 0 ge {
+	exch pop % keep the top value, discard the other
+	/x exch x + 1 - def
+      } {
+	pop
+	% try with next line if it exists
+	/x 0 def
+	/y y 1 + def
+	y getysize lt {/first 0 def runnext} {/move 0 def} ifelse
+      } ifelse
+    } def
+    runnext
   }
   "e" {
     /runnext {
@@ -227,6 +244,9 @@ initwtm %getcommand
     1 openline
     /mode /insert store
     /insert_mode msg setst showwtm
+  }
+  {{"KASCII" "w"} {}} {
+    "w" movelocation
   }
   % TODO
 >> def
