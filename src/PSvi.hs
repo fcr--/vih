@@ -224,7 +224,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand),
         ("setst", psOpSetst),       ("getbuffsize", psOpGetbuffsize),
-        ("closewin", psOpClosewin)
+        ("closewin", psOpClosewin), ("winmove", psOpWinmove)
         ]
 
 
@@ -848,6 +848,22 @@ psOpClosewin :: PSState -> IO (Either String PSState)
 psOpClosewin st = ensureWTM "closewin" st $ do
     wtm' <- closeWin $ fromJust $ wtm st
     return $ Right st {wtm = Just wtm'}
+
+psOpWinmove :: PSState -> IO (Either String PSState)
+psOpWinmove st = ensureWTM "winmove" st $ ensureNArgs "winmove" 1 st $ case stack st of
+    (PSName _ dir : ss) -> case toPos dir of
+        Just pos -> do
+            wtm' <- winMove (fromJust $ wtm st) pos
+            return $ Right st {stack = ss, wtm = Just wtm'}
+        Nothing -> return $ Left "psInterp error: winmove: invalid direction, use /l, /u, /d or /r"
+    _ ->return $ Left "psInterp error: setst: not a string on top of the stack"
+    where
+    toPos :: String -> Maybe TI.Pos
+    toPos d | d == "l"  = Just TI.L
+            | d == "u"  = Just TI.U
+            | d == "d"  = Just TI.D
+            | d == "r"  = Just TI.R
+            | otherwise = Nothing
 
 ------ MAIN LOOP ------
 

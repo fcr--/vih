@@ -248,6 +248,21 @@ initwtm %getcommand
   {{"KASCII" "w"} {}} {
     "w" movelocation
   }
+  {{"KASCII" "w"} {"MCtrl"}} {
+    begin
+      /control_w_bindings <<
+	{"KLeft"} {/l winmove}
+	{"KUp"} {/u winmove}
+	{"KDown"} {/d winmove}
+	{"KRight"} {/r winmove}
+      >> def
+      getkey pop
+      dup control_w_bindings exch known {
+	% si está en el diccionario lo ejecuta:
+	control_w_bindings exch get exec
+      } {pop} ifelse
+    end
+  }
   % TODO
 >> def
 
