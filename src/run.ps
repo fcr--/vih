@@ -361,16 +361,22 @@ showwtm
       "KASCII" eq {
 	begin
 	  dup 0 get 1 get % stack: [key mods] char
-	  /char exch def
 	  /line getypos getline def
 	  /len line length def
 	  /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+	  /char exch
+	    % "\t" exception: move cursor to multiple of shift_width:
+	    dup "\t" eq {
+	      % add shift_width - (x `mod` shift_width) spaces
+	      pop "" 1 1 shift_width x shift_width mod - {pop " " +} for
+	    } if
+	    def
 	  getypos
 	  line 0 x getinterval
 	  char +
 	  line x  len x -  getinterval + % concat from x, len-x chars.
 	  setline
-	  x 1 + setxpos
+	  x char length + setxpos
 	end
 	% stack: [key mods] key
       } if
