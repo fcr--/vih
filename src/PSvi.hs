@@ -345,14 +345,14 @@ psOpMul st = ensureNArgs "*" 2 st $ return $ case stack st of
 
 psOpMod :: PSState -> IO (Either String PSState)
 psOpMod st = ensureNArgs "mod" 2 st $ return $ case stack st of
-    (PSInt i1:PSInt i2:ss) -> if i2 /= 0
+    (PSInt i1:PSInt i2:ss) -> if i1 /= 0
         then Right st {stack = PSInt (mod i2 i1) : ss}
         else Left "psInterp error: mod: division by zero"
     _ -> Left "psInterp error: mod: top 2 elements of the stack must be int"
 
 psOpDiv :: PSState -> IO (Either String PSState)
 psOpDiv st = ensureNArgs "div" 2 st $ return $ case stack st of
-    (PSInt i1:PSInt i2:ss) -> if i2 /= 0
+    (PSInt i1:PSInt i2:ss) -> if i1 /= 0
         then Right st {stack = PSInt (div i2 i1) : ss}
         else Left "psInterp error: div: division by zero"
     _ -> Left "psInterp error: div: top 2 elements of the stack must be int"
