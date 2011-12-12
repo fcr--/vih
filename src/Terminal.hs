@@ -246,8 +246,6 @@ splitX param bn wtm = f $ case changed cw spl of
 getBuff :: [Int] -> Layout -> Int
 getBuff (x:xs) (Vspan _ _ lst)  = getBuff xs ( fst $ lst !! x )
 getBuff (x:xs) (Hspan _ _ lst)  = getBuff xs ( fst $ lst !! x )
-getBuff k (Hspan _ _ lst)       = getBuff [] $ fst $  lst !! head k
-getBuff k (Vspan _ _ lst)       = getBuff [] $ fst $ lst !! head k
 getBuff _ (Window _ buff)       = buff
 
 changed :: [Int] -> Layout -> Bool
@@ -261,7 +259,7 @@ splitLoX :: Bool -> Int -> Layout -> [Int] -> Layout
 splitLoX param bn l (x: xs@(y':ys)) = case l of
                 (Vspan w h lst) -> Vspan w h ((take x) lst ++ [(\(lay,height) -> (splitLoX param bn lay xs,height)) (lst!!x)] ++ drop (x+1) lst)
                 (Hspan w h lst) -> Hspan w h ((take x) lst ++ [(\(lay,width) -> (splitLoX param bn lay xs,width)) (lst!!x)] ++ drop (x+1) lst)
-                (Window (x,y) z) -> error "splitLoX : Window (x,y) z" -- Window (x,y)
+                (Window (x,y) z) -> splitLoX param bn l [x] -- Window (x,y)
                 (NoWin (x,y)) -> error "splitLoX : NoWin (x,y)" -- NoWin (x,y)
 splitLoX param bn l [x] |param = case l of
                                 (Vspan w h lst) -> resizeLo w h $  Vspan w h (take x lst ++ [(splitSpan param bn (lst!!x) w)] ++ (drop (x+1) lst))

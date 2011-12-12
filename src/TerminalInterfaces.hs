@@ -118,7 +118,7 @@ navigatePos pos toNav lenPlace | toNav == 0 && navLev pos == True = 0
                                | otherwise = (if navLev pos then -1 else 1) + toNav
 -- initWTM >>= \wtm -> winMove wtm U >>= \wtm2 -> shutdown (vty wtm2) >> return (curb wtm2)
 winMove :: WTManager -> Pos -> IO WTManager
-winMove wtm pos = let (xs,b) = _loMove (lo wtm) (curwdw wtm) pos in
+winMove wtm pos = let (xs,b) = _loMove (lo wtm) (curwdw wtm ++ repeat 0 ) pos in
                     do
                         case b of
 				True -> showWTM (wtm{curwdw = xs, curb = getBuff xs (lo wtm)})
@@ -132,18 +132,17 @@ _loMove lo (x: xs) pos = case lo of
 						True -> (x : a, b)
                                                 _ -> if x == 0 && pos == L || x == l && pos == R || verti pos then -- failure
 							([], b)
-						     else  ( (x + toInt pos) : take (go  $ fst $ lst !! 0) (repeat 0) , True)
+						     else  ( (x + toInt pos) : (repeat 0) , True)
                             Vspan w h lst -> let (a, b) = _loMove (fst (lst!!x)) xs pos in let l = length lst - 1 in
 					     case b of
 						True -> (x : a, b)
                                                 _ -> if x == 0 && pos == U || x == l && pos == D || horiz pos then -- failure
 							([], b)
-						     else  ( (x + toInt pos) : take (go $ fst $ lst !! 0) (repeat 0) , True)
-	where
-		go (Hspan w h lst) = 1 + go (fst (lst!!0) )
-                go (Vspan w h lst) = 1 + go (fst (lst!!0) )
-                go (Window _ _ )   = 0
-_loMove lo _ pos	=	([],False)
+						     else  ( (x + toInt pos) :  (repeat 0) , True)
+                            Window _ _    -> ([],False)
+
+_loMove lo [] pos	=	([],False)
+
 
 clamp z b = max 0 $ min b z
 
@@ -164,9 +163,9 @@ closeWin wtm = do
         let b = (\(wt,bf) -> wt{bm = bf} ) $ loOp deleteBuffer id wtm
         (DisplayRegion w h) <- display_bounds $ terminal $ vty b
         a <- return $ resizeLayout (fromIntegral w) (fromIntegral h) (b{lo = fst(navLayout (lo b) (curwdw b))})
-        showWTM a >>= \x -> return x {curwdw = newcurwdw x}
+        showWTM a >>= \x -> let cr = newcurwdw x in return x {curwdw = cr, curb = getBuff cr (lo x)}
     where 
-        navLayout lt (x:xs) = if length xs > 3 then 
+        navLayout lt (x:xs) = if length xs > 0 then 
                 (case lt of 
                     (Hspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if horiz then mergeLayout horiz nlo w h lst x else (Hspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),True)
                     (Vspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if not horiz then mergeLayout horiz nlo w h lst x else (Vspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),False)
@@ -188,4 +187,4 @@ newcurwdw wtm = getNewWin (lo wtm)
         getNewWin lo = case lo of
             (Hspan _ _ lst) -> (:) 0 $ getNewWin $ (fst.head) lst
             (Vspan _ _ lst) -> (:) 0 $ getNewWin $ (fst.head) lst
-            (Window _ _) -> [0,0]
+            (Window _ _) -> []
