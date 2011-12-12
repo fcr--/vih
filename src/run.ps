@@ -204,7 +204,9 @@ initwtm %getcommand
       getypos 1 + getline +
       setline
       % delete old next line:
-      getypos 1 + deleteline
+      getypos
+      getypos 1 + setypos deleteline
+      setypos
     } if
   }
   {{"KASCII" "j"} {}} {
