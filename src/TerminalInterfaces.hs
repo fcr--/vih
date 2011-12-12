@@ -121,9 +121,12 @@ winMove :: WTManager -> Pos -> IO WTManager
 winMove wtm pos = let (xs,b) = _loMove (lo wtm) (curwdw wtm ++ repeat 0 ) pos in
                     do
                         case b of
-				True -> showWTM (wtm{curwdw = xs, curb = getBuff xs (lo wtm)})
+				True -> let cr = fix (lo wtm) xs in showWTM (wtm{curwdw = cr, curb = getBuff cr (lo wtm)})
                                 False -> showWTM wtm
-
+	where
+		fix (Window _ _) xs = []
+		fix (Hspan _ _ lst ) (x:xs) = x : fix (fst $ lst !! x) xs
+		fix (Vspan _ _ lst ) (x:xs) = x : fix (fst $ lst !! x) xs
 
 _loMove :: Layout -> [Int] -> Pos -> ([Int],Bool)
 _loMove lo (x: xs) pos = case lo of
