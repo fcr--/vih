@@ -35,7 +35,8 @@ initWTM = do
     let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
     wtm' <- newWin True wtm --  TODO : DE MUESTRA ESTO
     wtm'' <- newWin False wtm'
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm''
+    wtm3 <- newWin False wtm''
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm3
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -242,8 +243,8 @@ splitX param bn wtm = case changed cw spl of
 changed :: [Int] -> Layout -> Bool
 changed (x:xs) (Vspan _ _ lst)  = changed xs ( fst $ lst !! x )
 changed (x:xs) (Hspan _ _ lst)  = changed xs ( fst $ lst !! x )
-changed _ (Hspan _ _ lst)       = True
-changed _ (Vspan _ _ lst)       = True
+changed _ (Hspan _ _ _)         = True
+changed _ (Vspan _ _ _)         = True
 changed _ _ = False
 
 splitLoX :: Bool -> Int -> Layout -> [Int] -> Layout
@@ -254,10 +255,10 @@ splitLoX param bn l (x: xs@(y':ys)) = case l of
                 (NoWin (x,y)) -> error "splitLoX : NoWin (x,y)" -- NoWin (x,y)
 splitLoX param bn l [x] |param = case l of
                                 (Vspan w h lst) -> resizeLo w h $  Vspan w h (take x lst ++ [(splitSpan param bn (lst!!x) w)] ++ (drop (x+1) lst))
-                                (Hspan w h lst) -> resizeLo w h $  Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(Window (undefined,undefined) 0, undefined)] ++  drop x lst))
+                                (Hspan w h lst) -> resizeLo w h $  Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(Window (undefined,undefined) bn, undefined)] ++  drop x lst))
                                 (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
                      |not param = case l of
-                                (Vspan w h lst) -> resizeLo w h $ Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(Window (w,h) undefined,undefined)] ++ drop x lst))
+                                (Vspan w h lst) -> resizeLo w h $ Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(Window (w,h) bn,undefined)] ++ drop x lst))
                                 (Hspan w h lst) -> resizeLo w h $ Hspan w h (take x lst ++ [(splitSpan param bn (lst!!x) h)] ++ (drop (x+1) lst))
                                 (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
     where splitSpan  param bn (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
