@@ -303,6 +303,8 @@ initwtm %getcommand
   % stacks ejemplo: {} ":q", {"archivo"} ":w"
   <<
     ":q" {quit}
+    ":e" {dup {} eq {{""} +} if exec openfile}
+    ":w" {writefile}
     % TODO
   >> exch
   2 copy known {
