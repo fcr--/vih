@@ -255,6 +255,10 @@ initwtm %getcommand
 	{"KUp"} {/u winmove}
 	{"KDown"} {/d winmove}
 	{"KRight"} {/r winmove}
+	{"KASCII" "c"} {
+	  getbuffsize 1 gt {closewin} {/cant_close_last_win msg setst} ifelse
+	  showwtm
+	}
       >> def
       getkey pop
       dup control_w_bindings exch known {
@@ -337,7 +341,7 @@ initwtm %getcommand
   } if
   % stacks ejemplo: {} ":q", {"archivo"} ":w"
   <<
-    ":q" {getbuffsize {closewin} {quit} ifelse}
+    ":q" {getbuffsize 1 gt {closewin showwtm} {quit} ifelse}
     ":e" {dup {} eq {{""} +} if exec openfile}
     ":w" {writefile}
     % TODO
