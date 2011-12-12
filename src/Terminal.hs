@@ -22,6 +22,7 @@ data WTManager = WTMa {lo :: Layout -- current layout
                       ,bm :: BManager
                       ,stLine :: String
                       ,vty :: Vty
+                      ,curb :: Int
                       }
 
  -- The way to initialize the window manager at program startup
@@ -32,10 +33,11 @@ initWTM = do
     v <- mkVty
     --show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
-    let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v}
-    wtm' <- newWin True wtm --  TODO : DE MUESTRA ESTO
+    let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v, curb = 0}
+    wtm'  <- newWin True wtm --  TODO : DE MUESTRA ESTO
     wtm'' <- newWin False wtm'
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm''
+    wtm3  <- newWin False wtm''
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm3
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -211,7 +213,7 @@ printControl lOut = string def_attr $ show lOut
 printLayout :: Layout -> State WTManager Image
 printLayout lOut = case lOut of
                         NoWin (x,y) -> return $ printNoWin x y
-                        (Window (x,y) num) -> gets (\wm-> printWinBM (bm wm) num (x,y)) >>= \(im,nbm) ->  modify (\wtm -> wtm{bm = nbm}) >> return im
+                        (Window (x,y) num) -> gets (\wm-> printWinBM (bm wm) num (num == curb wm) (x,y)) >>= \(im,nbm) ->  modify (\wtm -> wtm{bm = nbm}) >> return im
                         (Hspan x y xsL) -> mapM (printLayout.fst) xsL >>= return . ( foldr1 (\a b -> a <|> barraVert y <|> b ) )
                         (Vspan x y xsL) -> mapM (printLayout.fst) xsL >>= return . ( foldr1 (\a b -> a <-> barraHoriz x <-> b) )
     where barraVert y = char_fill cbarras '|' 1 y
@@ -232,12 +234,20 @@ newWin horiz wtm' = do
 --Hacer split Horizontal con param = True, vertical con param = False
 -- Int = buffer number
 splitX :: Bool -> Int -> WTManager -> WTManager
-splitX param bn wtm = case changed cw spl of
+splitX param bn wtm = f $ case changed cw spl of
                         True -> wtm{ lo = spl, curwdw = (\xs -> xs ++ [1]) cw}
                         _ -> wtm {lo = spl, curwdw = (\xs -> init xs ++ [1 + last xs]) cw } 
     where
             cw = curwdw wtm
             spl = splitLoX param bn (lo wtm) cw 
+            f wtm = wtm {curb = (getBuff ( curwdw wtm ) (lo wtm )) }
+
+getBuff :: [Int] -> Layout -> Int
+getBuff (x:xs) (Vspan _ _ lst)  = getBuff xs ( fst $ lst !! x )
+getBuff (x:xs) (Hspan _ _ lst)  = getBuff xs ( fst $ lst !! x )
+getBuff k (Hspan _ _ lst)       = getBuff [] $ fst $  lst !! head k
+getBuff k (Vspan _ _ lst)       = getBuff [] $ fst $ lst !! head k
+getBuff _ (Window _ buff)       = buff
 
 changed :: [Int] -> Layout -> Bool
 changed (x:xs) (Vspan _ _ lst)  = changed xs ( fst $ lst !! x )

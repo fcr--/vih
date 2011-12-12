@@ -116,16 +116,44 @@ navigatePos :: Pos -> Int -> Int -> Int
 navigatePos pos toNav lenPlace | toNav == 0 && navLev pos == True = 0
                                | toNav == (lenPlace-1) && not (navLev pos) == False = lenPlace -1
                                | otherwise = (if navLev pos then -1 else 1) + toNav
-
+-- initWTM >>= \wtm -> winMove wtm U >>= \wtm2 -> shutdown (vty wtm2) >> return (curb wtm2)
 winMove :: WTManager -> Pos -> IO WTManager
-winMove wtm pos = let (xs,_) = _loMove (lo wtm) (curwdw wtm) pos in
+winMove wtm pos = let (xs,b) = _loMove (lo wtm) (curwdw wtm) pos in
                     do
-                        showWTM (wtm{curwdw = xs})
+                        case b of
+				True -> showWTM (wtm{curwdw = xs, curb = getBuff xs (lo wtm)})
+                                False -> showWTM wtm
+
+
 _loMove :: Layout -> [Int] -> Pos -> ([Int],Bool)
-_loMove lo (x:xs) pos = case lo of
-            (Window _ _) -> (xs,False)
-            (Hspan a b lst) -> let ((cab:cola),stuff) = _loMove (fst (lst!!x)) xs pos in if stuff then (x:cab:cola,True) else if not (horiz pos) then (x:xs,False) else (x:repeat 0,True)
-            (Vspan a b lst) -> let ((cab:cola),stuff) = _loMove (fst (lst!!x)) xs pos in if stuff then (x:cab:cola,True) else if not (verti pos) then (x:xs,False) else (x:repeat 0,True)
+_loMove lo (x: xs) pos = case lo of
+                            Hspan w h lst -> let (a, b) = _loMove (fst (lst!!x)) xs pos in let l = length lst - 1 in
+					     case b of
+						True -> (x : a, b)
+                                                _ -> if x == 0 && pos == L || x == l && pos == R || verti pos then -- failure
+							([], b)
+						     else  ( (x + toInt pos) : take (go  $ fst $ lst !! 0) (repeat 0) , True)
+                            Vspan w h lst -> let (a, b) = _loMove (fst (lst!!x)) xs pos in let l = length lst - 1 in
+					     case b of
+						True -> (x : a, b)
+                                                _ -> if x == 0 && pos == U || x == l && pos == D || horiz pos then -- failure
+							([], b)
+						     else  ( (x + toInt pos) : take (go $ fst $ lst !! 0) (repeat 0) , True)
+	where
+		go (Hspan w h lst) = 1 + go (fst (lst!!0) )
+                go (Vspan w h lst) = 1 + go (fst (lst!!0) )
+                go (Window _ _ )   = 0
+_loMove lo _ pos	=	([],False)
+
+clamp z b = max 0 $ min b z
+
+toInt :: Pos -> Int
+toInt L = -1
+toInt R = 1
+toInt D = 1
+toInt U = -1
+
+-- _loMove (Window _ _) xs _ = (xs,False)
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
 writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (loOp writeFileBM id wtm)
 

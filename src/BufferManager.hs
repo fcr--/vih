@@ -128,10 +128,10 @@ openLineBM bm bn updown = case lookup bn (buffers bm) of
 	where
 		mp = buffers bm
 
-printWinBM :: BManager -> Int -> (Int,Int) -> (Image, BManager)
-printWinBM bm bn pos = case lookup bn (buffers bm) of 
-			Just buff -> let (img,buf) = Buffer.printBuff buff pos in (img, bm { buffers = insert bn buf mp} )
-			Nothing -> undefined -- TODO ..good goddamn luck!
+printWinBM :: BManager -> Int -> Bool -> (Int,Int) -> (Image, BManager)
+printWinBM bm bn cur pos = case lookup bn (buffers bm) of 
+				Just buff -> let (img,buf) = Buffer.printBuff buff cur pos in (img, bm { buffers = insert bn buf mp} )
+				Nothing -> undefined -- TODO ..good goddamn luck!
     where
         mp = buffers bm
 

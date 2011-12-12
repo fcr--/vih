@@ -169,9 +169,9 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- windowPointer indicates the number of visual lines to be printed, above from the visual lines associated witht the current line
 -- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
 -- TODO: Probar con la función main de este módulo en ghci.
-printBuff :: Buffer  -> (Int,Int) -> (Image,Buffer)
-printBuff buf (w,h)	|	d > h		=	error "printBuff" -- ver en qué sublínea está el cursor
-			|	otherwise	=	(vert_cat $ take h $ reverse ( take wp' p' )  ++ l' ++ s' ++ noqui , buf { winPoint =  wp'})
+printBuff :: Buffer -> Bool  -> (Int,Int) -> (Image,Buffer)
+printBuff buf cursor (w,h)	|	d > h		=	error "printBuff" -- ver en qué sublínea está el cursor
+				|	otherwise	=	(vert_cat $ take h $ reverse ( take wp' p' )  ++ l' ++ s' ++ noqui , buf { winPoint =  wp'})
 	where
 		noqui = repeat (string def_attr "~")
 		wp = winPoint buf
@@ -182,7 +182,7 @@ printBuff buf (w,h)	|	d > h		=	error "printBuff" -- ver en qué sublínea está 
 		s' = concat $ map (func.partition') s -- [Image]
 --		l' = func $ partition' l -- images of the lines [Image]
 		x' = getX buf -- max 0 $ min (length( Buffer.getLine buf) - 1 ) $ getX buf
-		l' = func $ partition' $ take x' l ++ map (char ((def_attr `with_style` blink) `with_style` reverse_video)) cursor_block ++ drop (x' + 1) l -- images of the lines [Image]
+		l' = if cursor then func $ partition' $ take x' l ++ map (char ((def_attr `with_style` blink) `with_style` reverse_video)) cursor_block ++ drop (x' + 1) l else func $ partition' $ l  -- images of the lines [Image]
 		cursor_block = let d = drop x' l in if null d then " " else (flip replicate ' ' $ fromEnum $ image_width $ head d)
 		d  = length l'
 		empty_line = take w $ repeat (char def_attr ' ')
@@ -281,7 +281,7 @@ readGrammar s  = do
 
 
 -- test
-
+{-
 main :: IO ()
 main =	 do
 		vty <- mkVty
@@ -309,4 +309,4 @@ loop buffer vty = do
 	where
 		bd = ( lineDown buffer )
 		bu = (lineUp buffer)
-		bj = joinLine buffer
+		bj = joinLine buffer -}
