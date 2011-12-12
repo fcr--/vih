@@ -223,7 +223,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("openline", psOpOpenline), ("deleteline", psOpDeleteline),
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand),
-        ("setst", psOpSetst)
+        ("setst", psOpSetst),       ("getbuffsize", psOpGetbuffsize),
+        ("closewin", psOpClosewin)
         ]
 
 
@@ -838,6 +839,15 @@ psOpSetst st = ensureWTM "setst" st $ ensureNArgs "setst" 1 st $ case stack st o
         wtm'' <- showWTM $ setSt status $ fromJust $ wtm st
         return $ Right st {stack = ss, wtm = Just wtm''}
     _ ->return $ Left "psInterp error: setst: not a string on top of the stack"
+
+psOpGetbuffsize :: PSState -> IO (Either String PSState)
+psOpGetbuffsize st = ensureWTM "getbuffsize" st $ return $ Right st {stack = sz : stack st}
+    where sz = PSInt $ getBuffSize $ fromJust $ wtm st
+
+psOpClosewin :: PSState -> IO (Either String PSState)
+psOpClosewin st = ensureWTM "closewin" st $ do
+    wtm' <- closeWin $ fromJust $ wtm st
+    return $ Right st {wtm = Just wtm'}
 
 ------ MAIN LOOP ------
 
