@@ -37,7 +37,8 @@ initWTM = do
     wtm'  <- newWin True wtm --  TODO : DE MUESTRA ESTO
     wtm'' <- newWin False wtm'
     wtm3  <- newWin False wtm''
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm3
+    wtm4  <- newWin False wtm3
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm4
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
@@ -264,10 +265,10 @@ splitLoX param bn l (x: xs@(y':ys)) = case l of
                 (NoWin (x,y)) -> error "splitLoX : NoWin (x,y)" -- NoWin (x,y)
 splitLoX param bn l [x] |param = case l of
                                 (Vspan w h lst) -> resizeLo w h $  Vspan w h (take x lst ++ [(splitSpan param bn (lst!!x) w)] ++ (drop (x+1) lst))
-                                (Hspan w h lst) -> resizeLo w h $  Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take x lst ++ [(Window (undefined,undefined) bn, undefined)] ++  drop x lst))
+                                (Hspan w h lst) -> resizeLo w h $  Hspan w h (map (\(l,s) -> (resizeLo w h l,s)) (take (x+1) lst ++ [(Window (undefined,undefined) bn, undefined)] ++  drop (x+1) lst))
                                 (Window (w,h) b)-> resizeLo w h $ Hspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
                      |not param = case l of
-                                (Vspan w h lst) -> resizeLo w h $ Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take x lst ++ [(Window (w,h) bn,undefined)] ++ drop x lst))
+                                (Vspan w h lst) -> resizeLo w h $ Vspan w h (map (\(l,s) -> (resizeLo w h l,h)) (take (x+1) lst ++ [(Window (w,h) bn,undefined)] ++ drop (x+1) lst))
                                 (Hspan w h lst) -> resizeLo w h $ Hspan w h (take x lst ++ [(splitSpan param bn (lst!!x) h)] ++ (drop (x+1) lst))
                                 (Window (w,h) b) -> resizeLo w h $ Vspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
     where splitSpan  param bn (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
