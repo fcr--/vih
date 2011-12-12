@@ -356,6 +356,12 @@ Operators (sorted by name):
 
     Pops an int element, and pushes back its negative (0 minus that element).
 
+  newwin:	dir newwin -
+
+    Use this operator to create a new window with an empty buffer. dir must one
+    of the following names: /horiz or /vert. To use this command initwtm should
+    be previously called.
+
   not:	int1 not int
 
     Pops an int element, and pushes back 1 if the element was zero, or 0 if the

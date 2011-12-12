@@ -224,7 +224,8 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("openfile", psOpOpenfile), ("writefile", psOpWritefile),
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand),
         ("setst", psOpSetst),       ("getbuffsize", psOpGetbuffsize),
-        ("closewin", psOpClosewin), ("winmove", psOpWinmove)
+        ("closewin", psOpClosewin), ("newwin", psOpNewwin),
+        ("winmove", psOpWinmove)
         ]
 
 
@@ -849,6 +850,20 @@ psOpClosewin st = ensureWTM "closewin" st $ do
     wtm' <- closeWin $ fromJust $ wtm st
     return $ Right st {wtm = Just wtm'}
 
+psOpNewwin :: PSState -> IO (Either String PSState)
+psOpNewwin st = ensureWTM "newwin" st $ ensureNArgs "newwin" 1 st $ case stack st of
+    (PSName _ x : ss) -> case foo x of
+        Just x' -> do
+            wtm' <- newWin x' $ fromJust $ wtm st
+            return $ Right st {stack = ss, wtm = Just wtm'}
+        Nothing -> return $ Left "psInterp error: newwin: invalid direction, use /vert or /horiz"
+    _ ->return $ Left "psInterp error: newwin: not a name on top of the stack"
+    where
+    foo :: String -> Maybe Bool
+    foo x | x == "vert"  = Just False
+          | x == "horiz"  = Just True
+          | otherwise = Nothing
+
 psOpWinmove :: PSState -> IO (Either String PSState)
 psOpWinmove st = ensureWTM "winmove" st $ ensureNArgs "winmove" 1 st $ case stack st of
     (PSName _ dir : ss) -> case toPos dir of
@@ -856,7 +871,7 @@ psOpWinmove st = ensureWTM "winmove" st $ ensureNArgs "winmove" 1 st $ case stac
             wtm' <- winMove (fromJust $ wtm st) pos
             return $ Right st {stack = ss, wtm = Just wtm'}
         Nothing -> return $ Left "psInterp error: winmove: invalid direction, use /l, /u, /d or /r"
-    _ ->return $ Left "psInterp error: setst: not a string on top of the stack"
+    _ ->return $ Left "psInterp error: winmove: not a name on top of the stack"
     where
     toPos :: String -> Maybe TI.Pos
     toPos d | d == "l"  = Just TI.L
