@@ -101,6 +101,11 @@ Operators (sorted by name):
 
     Pushes dict on dictionary stack.
 
+  closewin:	- closewin -
+
+    This command closes the current window with its buffer. To use this command
+    initwtm should be previously called.
+
   copy:	obj1 obj2 .. objn n copy obj1 obj2 .. objn obj1 obj2 .. objn
 
     Duplicate top n elements.
@@ -222,6 +227,11 @@ Operators (sorted by name):
 
     If it's a list, return the index-th element of the list. The index must
     be an integer between 0 and length(list)-1, or a "rangecheck" error occurs.
+
+  getbuffsize:	- getbuffsize num
+
+    Call this operator to get the number of buffers currently open. To use this
+    command initwtm should be previously called.
 
   getcommand:	prompt getcommand result 1  (if Enter is pressed)
 				  "" 0      (if Esc or ^C pressed)
@@ -531,6 +541,12 @@ Operators (sorted by name):
 
     Scroll downwards one line in the current buffer. To use this command
     initwtm should be previously called.
+
+  winmove:	dir winmove -
+
+    Use this operator to change the current window. dir must one of the
+    following names: /l, /u, /d or /r. To use this command initwtm should be
+    previously called.
 
   winup:	- winup -
 
