@@ -1,0 +1,8 @@
+all = (comment / blank / number / string / name / text)*;
+comment = '%' (todo / !'\n'.)*;
+todo = "TODO";
+blank = ' ' / '\t';
+number = '0'..'9'+;
+string = '"' (!'\\'. / '\\'.)* '"';
+name = '/' ('A'..'Z' / 'a'..'z' / '_') ('A'..'Z' / 'a'..'z' / '_' / '0'..'9')*;
+text = .;

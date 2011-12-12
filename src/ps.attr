@@ -1,0 +1,5 @@
+comment = fgcolor blue;
+todo = bold | fgcolor yellow | bgcolor blue;
+number = fgcolor magenta;
+string = fgcolor red;
+name = fgcolor green | bold;
