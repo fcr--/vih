@@ -302,7 +302,7 @@ initwtm %getcommand
   } if
   % stacks ejemplo: {} ":q", {"archivo"} ":w"
   <<
-    ":q" {quit}
+    ":q" {getbuffsize {closewin} {quit} ifelse}
     ":e" {dup {} eq {{""} +} if exec openfile}
     ":w" {writefile}
     % TODO
