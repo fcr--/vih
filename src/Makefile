@@ -18,5 +18,5 @@ clean:
 	rm -f ./Peg/*.hi ./Peg/*.o
 
 install:
-	mkdir ~/.vih/
+	mkdir -p ~/.vih/
 	cp *.peg *.attr ~/.vih/
