@@ -172,7 +172,7 @@ highlight buff = let (p,c,s) = contents buff in (map memo p, memo c, map memo s)
 -- from Buffer, windowPointer (corresponding to this buffer), (weight ;P , height) ... to (Image, new wp)
 -- TODO: Probar con la función main de este módulo en ghci.
 printBuff :: Buffer -> Bool  -> (Int,Int) -> (Image,Buffer)
-printBuff buf cursor (w,h)	|	d > h		=	error "printBuff" -- ver en qué sublínea está el cursor
+printBuff buf cursor (w,h)	|	d > h		=	(vert_cat  $ take h $ repeat $ string ( def_attr `with_style` bold) "長すぎるorz" , buf { winPoint =  0}) -- ver en qué sublínea está el cursor
 				|	otherwise	=	(vert_cat $ take h $ reverse ( take wp' p' )  ++ l' ++ s' ++ noqui , buf { winPoint =  wp'})
 	where
 		noqui = repeat (string def_attr "~")
