@@ -226,7 +226,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         ("getkey", psOpGetkey),     ("getcommand", psOpGetcommand),
         ("setst", psOpSetst),       ("getbuffsize", psOpGetbuffsize),
         ("closewin", psOpClosewin), ("newwin", psOpNewwin),
-        ("winmove", psOpWinmove)
+        ("winmove", psOpWinmove),   ("winrotate", psOpWinrotate)
         ]
 
 
@@ -880,6 +880,11 @@ psOpWinmove st = ensureWTM "winmove" st $ ensureNArgs "winmove" 1 st $ case stac
             | d == "d"  = Just TI.D
             | d == "r"  = Just TI.R
             | otherwise = Nothing
+
+psOpWinrotate :: PSState -> IO (Either String PSState)
+psOpWinrotate st = ensureWTM "winrotate" st $ do
+    wtm' <- winRotate $ fromJust $ wtm st
+    return $ Right st {wtm = Just wtm'}
 
 ------ MAIN LOOP ------
 

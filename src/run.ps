@@ -431,6 +431,7 @@ initwtm %getcommand
 	  getbuffsize 1 gt {closewin} {/cant_close_last_win msg setst} ifelse
 	  showwtm
 	}
+	{"KASCII" "w"} {winrotate} autorepeat
       >> def
       getkey pop
       dup control_w_bindings exch known {
