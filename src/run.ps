@@ -271,12 +271,34 @@ initwtm %getcommand
     getxpos 1 + setxpos
     /insert_mode msg setst showwtm
   }
+  {{"KASCII" "C"} {}} {
+    begin
+      /line getypos getline def
+      /x getxpos dup line length gt {pop line length} if def
+      /clipboard line x line length getinterval def
+      getypos line 0 x getinterval setline
+    end
+    /mode /insert store % cambio modo insert
+    /insert_mode msg setst showwtm
+  }
+  {{"KASCII" "d"} {}} {
+    begin
+      /del_bindings <<
+        {"KASCII" "d"} {
+          deleteline
+        } autorepeat
+      >> def
+      getkey pop
+      dup del_bindings exch known {
+	del_bindings exch get exec
+      } {pop} ifelse
+    end
+  }
   {{"KASCII" "D"} {}} {
     begin
       /line getypos getline def
       getxpos line length lt {
-	/clipboard getxpos line length getinterval def
-       	line 0 getxpos getinterval def
+	/clipboard line getxpos line length getinterval def
 	/line line 0 getxpos getinterval def
 	getypos line setline
 	line length dup {1 -} if setxpos
@@ -285,6 +307,9 @@ initwtm %getcommand
   }
   {{"KASCII" "e"} {}} {
     "e" movelocation
+  } autorepeat
+  {{"KASCII" "e"} {"MCtrl"}} {
+    windown
   } autorepeat
   {{"KASCII" "h"} {}} {
     cursorleft
@@ -357,6 +382,9 @@ initwtm %getcommand
       } {pop} ifelse
     end
   }
+  {{"KASCII" "y"} {"MCtrl"}} {
+    winup
+  } autorepeat
 
   % meta-code that generates callbacks for 0..9:
   begin
