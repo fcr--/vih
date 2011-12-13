@@ -170,21 +170,23 @@ closeWin wtm = do
         a <- return $ resizeLayout (fromIntegral w) (fromIntegral h) (b{lo = fst(navLayout (lo b) (curwdw b))})
         showWTM a >>= \x -> let cr = newcurwdw x in return x {curwdw = cr, curb = getBuff cr (lo x)}
     where 
-        navLayout lt (x:xs) = if length xs > 0 then 
-                (case lt of 
-                    (Hspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if horiz then mergeLayout horiz nlo w h lst x else (Hspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),True)
-                    (Vspan w h lst) -> let (nlo,horiz) = navLayout (fst(lst!!x)) xs in if not horiz then mergeLayout horiz nlo w h lst x else (Vspan w h $ (take x lst) ++ [(nlo,0)] ++ (drop (x+1) lst),False)
-                    _ -> error "closeWin")
-            else
-                (case lt of
-                    (Hspan w h lst) -> (Hspan w h (take x lst ++ drop (x+1) lst),True)
-                    (Vspan w h lst) -> (Vspan w h (take x lst ++ drop (x+1) lst),False))
-        mergeLayout horiz nlo w h lst x = case horiz of
-            True -> case nlo of
-                (Hspan _ _ botlst) -> (Hspan 0 0 (take x lst ++ botlst ++ drop (x+1) lst),True)
-                _ -> error "true closeWin"
-            False -> case nlo of
-                (Vspan _ _ botlst) -> (Vspan 0 0 (take x lst ++ botlst ++ drop (x+1) lst),False)
+        navLayout lt (x:xs) = (\(x,y) -> (clamp x, y) ) $
+                case lt of 
+                    (Hspan w h lst) -> let (nlo,emp) = navLayout (fst(lst!!x)) xs in if emp then (Hspan w h $ (take x lst) ++ (drop (x+1) lst),len1 lst) else merge x lt nlo
+                    (Vspan w h lst) -> let (nlo,emp) = navLayout (fst(lst!!x)) xs in if emp then (Vspan w h $ (take x lst) ++ (drop (x+1) lst),len1 lst) else merge x lt nlo
+                    _ -> (undefined,True)
+	navLayout _ _ = (undefined,True)
+	len1 [] = False
+	len1 (x:y:ys) = False
+	len1 _ = True
+	clamp (Hspan w h [el]) = fst el
+	clamp (Vspan w h [el]) = fst el
+	clamp x = x
+	merge x (Hspan w h lst) (Hspan _ _ rs) = (Hspan w h $ (take x lst) ++ rs ++ (drop (x+1) lst),False)
+	merge x (Hspan w h lst) nlo = (Hspan w h $ (take x lst) ++ [(nlo,undefined)] ++ (drop (x+1) lst),False)
+	merge x (Vspan w h lst) (Vspan _ _ rs) = (Vspan w h $ (take x lst) ++ rs ++ (drop (x+1) lst),False)
+	merge x (Vspan w h lst) nlo = (Vspan w h $ (take x lst) ++ [(nlo,undefined)] ++ (drop (x+1) lst),False)
+
 newcurwdw :: WTManager -> [Int]
 newcurwdw wtm = getNewWin (lo wtm)
     where
