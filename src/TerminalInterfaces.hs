@@ -128,6 +128,31 @@ winMove wtm pos = let (xs,b) = _loMove (lo wtm) (curwdw wtm ++ repeat 0 ) pos in
 		fix (Hspan _ _ lst ) (x:xs) = x : fix (fst $ lst !! x) xs
 		fix (Vspan _ _ lst ) (x:xs) = x : fix (fst $ lst !! x) xs
 
+winRotate :: WTManager -> IO WTManager
+--winRotate wtm	|	trace (show $ curwdw wtm) False = undefined
+winRotate wtm	=	do
+				let wtm' = case low of
+						Window _ _ -> wtm
+						_ -> case (dfs $ cr ) low False of
+								(_,False,_)	->	wtm { curwdw = nwcr, curb = getBuff nwcr low }
+								(ys,True,_)	->	wtm { curwdw = ys , curb = getBuff ys low }
+				showWTM wtm'
+				
+	where
+		nwcr = newcurwdw wtm
+		cr = curwdw wtm
+		low = lo wtm
+		dfs (x:xs) (Hspan _ _ lst) cnt	|	length lst == x 	=	([],False,cnt)
+		dfs (x:xs) (Vspan _ _ lst) cnt	|	length lst == x 	=	([],False,cnt)
+		dfs (x:xs) lo@(Hspan _ _ lst) cnt 	=	case dfs xs (fst $ lst !! x) cnt of
+									(_,False, cnt') -> dfs ((x+1): repeat 0) lo cnt'
+									(ys,True, cnt') -> (x : ys, True, cnt')
+		dfs (x:xs) lo@(Vspan _ _ lst) cnt	=	case dfs xs (fst $ lst !! x) cnt of
+									(_,False, cnt') -> dfs ((x+1): repeat 0) lo cnt'
+									(ys,True, cnt') -> (x : ys, True, cnt')
+		dfs _ (Window _ _) False	= ([],False,True)
+		dfs _ (Window _ _) True		= ([],True,True)
+
 _loMove :: Layout -> [Int] -> Pos -> ([Int],Bool)
 _loMove lo (x: xs) pos = case lo of
                             Hspan w h lst -> let (a, b) = _loMove (fst (lst!!x)) xs pos in let l = length lst - 1 in
