@@ -207,6 +207,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
         ("def", psOpDef),       ("get", psOpGet),       ("known", psOpKnown),
         ("load", psOpLoad),     ("put", psOpPut),       ("store", psOpStore),
+        ("undef", psOpUndef),   ("where", psOpWhere),
         ("begin", psOpBegin),   ("end", psOpEnd),
         ("head", psOpHead),     ("tail", psOpTail),     ("getinterval", psOpGetinterval),
         ("regexp", psOpRegexp), ("regsub", psOpRegsub), ("search", psOpSearch),
@@ -903,11 +904,11 @@ main = do
     st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
     let st3 = case st2' of Left _ -> st2; Right s -> s
 
-    st3'<- psExecFile st3 "run.ps"
-    case st3' of Left err -> putStrLn err; _ -> return ()
+    st3'<- psExecFile st3 "/etc/run.ps"
+    case st3' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st4 = case st3' of Left _ -> st3; Right s -> s
 
-    st4'<- psExecFile st4 "/etc/run.ps"
+    st4'<- psExecFile st4 "./run.ps"
     case st4' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st5 = case st4' of Left _ -> st4; Right s -> s
 
