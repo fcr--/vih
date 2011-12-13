@@ -10,10 +10,10 @@ testBuffers:
 	ghc --make TestBufferManager.hs -o .ptestBuffer
 
 main:
-	ghc --make PSvi.hs -o vih
+	ghc -O --make PSvi.hs -o vih
 
 clean:
-	rm -f ptest*
+	rm -f ptest* vih
 	rm -f *.hi *.o
 	rm -f ./Peg/*.hi ./Peg/*.o
 

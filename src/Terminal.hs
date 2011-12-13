@@ -34,11 +34,11 @@ initWTM = do
     --show_cursor $ terminal v
     (DisplayRegion w h) <- display_bounds (terminal v)
     let wtm = resizeLayout (fromIntegral w) (fromIntegral h) $ WTMa {lo = Window (undefined, undefined) 0, curwdw = [0], wtmH = 0, wtmW = 0, bm = newBM, stLine = "Welcome to VIH.", vty = v, curb = 0}
-    wtm'  <- newWin True wtm --  TODO : DE MUESTRA ESTO
-    wtm'' <- newWin False wtm'
-    wtm3  <- newWin False wtm''
-    wtm4  <- newWin False wtm3
-    return $ resizeLayout (fromIntegral w) (fromIntegral h) $ wtm4
+    --wtm'  <- newWin True wtm --  TODO : DE MUESTRA ESTO
+    --wtm'' <- newWin False wtm'
+    --wtm3  <- newWin False wtm''
+    --wtm4  <- newWin False wtm3
+    return $ resizeLayout (fromIntegral w) (fromIntegral h) wtm -- $ wtm4
     
 --Data type that wraps the command line attributes
 data CommandLine = CM {comm :: String, pos :: Int}
