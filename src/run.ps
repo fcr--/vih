@@ -24,6 +24,49 @@ initwtm %getcommand
   end
 } def
 
+/do_search {
+  /last_search where {
+    "" setst
+    pop
+    begin
+      /first 1 def
+      /restarted 0 def
+      /x getxpos def
+      /y getypos def
+      /runnext {
+	/line y getline def
+	/x x first {1 +} if dup line length gt {pop line length} if def
+	last_search
+	line x line length getinterval
+	regexp dup 0 ge {
+	  pop % discard the top value, keep the other
+	  /x exch x + def
+	  y setypos
+	  x setxpos
+	} {
+	  pop
+	  % try with next line if it exists
+	  /x 0 def
+	  /y y 1 + def
+	  y getysize lt {/first 0 def runnext} {
+	    restarted not {
+	      /y 0 def
+	      /restarted 1 def
+	      /restarting_search msg setst
+	      runnext
+	    } if
+	    /pattern_not_found msg setst
+	  } ifelse
+	} ifelse
+      } def
+      runnext
+    end
+  } {
+    /no_prev_regexp msg setst
+  } ifelse
+  showwtm
+} def
+
 % msgname msg msgstring
 /msg {
   dup chosen_messages exch known {
@@ -35,7 +78,18 @@ initwtm %getcommand
 
 % - getliteralkey keystr
 /getliteralkey {
-  % TODO
+  % This operator must be implemented in the future, as it's needed for
+  % the 't' and 'f' commands. TODO
+} def
+
+/autorepeat {
+  begin
+    /code exch def
+    % el código a continuación es una clausura de:
+    % {repetitions {1 1 repetitions <code> for} <code> ifelse}
+    % donde <code> es el parámetro que se sustituye
+    {repetitions} [{1 1 repetitions} [/code load] + {for} +] + [/code load] + {ifelse} +
+  end
 } def
 
 % location bindings are relative to symbols x, y, and these
@@ -148,24 +202,25 @@ initwtm %getcommand
 %%%%%% DEFAULT KEYBINDINGS %%%%%%
 
 /mode /normal def
+/repetitions 0 def
 
 /normalkeybindings <<
   {{"KUp"} {}} {
     cursorup
-  }
+  } autorepeat
   {{"KDown"} {}} {
     cursordown
-  }
+  } autorepeat
   {{"KLeft"} {}} {
     cursorleft
-  }
+  } autorepeat
   {{"KRight"} {}} {
     cursorright
-  }
+  } autorepeat
   {{"KEnter"} {}} {
     cursordown
     cursorbol
-  }
+  } autorepeat
   {{"KBS"} {}} {
     % estoy al comienzo de la línea?
     getxpos 0 eq {
@@ -173,12 +228,18 @@ initwtm %getcommand
     } {
       cursorleft
     } ifelse
-  }
+  } autorepeat
   {{"KPageUp"} {}} {
     1 1 15 {cursorup} for
-  }
+  } autorepeat
   {{"KPageDown"} {}} {
     1 1 15 {cursordown} for
+  } autorepeat
+  {{"KHome"} {}} {
+    0 setxpos
+  }
+  {{"KEnd"} {}} {
+    cursoreol % moverse al fin de línea
   }
   {{"KASCII" ":"} {}} {
     ":" getcommand
@@ -189,6 +250,13 @@ initwtm %getcommand
   }
   {{"KASCII" "$"} {}} {
     cursoreol % moverse al fin de línea
+  }
+  {{"KASCII" "/"} {}} {
+    "/" getcommand {
+      /last_search exch def
+      /last_search last_search 1 last_search length 1 - getinterval def
+      do_search
+    } if
   }
   {{"KASCII" "A"} {}} {
     % mode insert al final de la línea
@@ -202,12 +270,24 @@ initwtm %getcommand
     getxpos 1 + setxpos
     /insert_mode msg setst showwtm
   }
+  {{"KASCII" "D"} {}} {
+    begin
+      /line getypos getline def
+      getxpos line length lt {
+	/clipboard getxpos line length getinterval def
+       	line 0 getxpos getinterval def
+	/line line 0 getxpos getinterval def
+	getypos line setline
+	line length dup {1 -} if setxpos
+      } if
+    end
+  }
   {{"KASCII" "e"} {}} {
     "e" movelocation
-  }
+  } autorepeat
   {{"KASCII" "h"} {}} {
     cursorleft
-  }
+  } autorepeat
   {{"KASCII" "I"} {}} {
     % mode insert
     /mode /insert store
@@ -231,16 +311,19 @@ initwtm %getcommand
       getypos 1 + setypos deleteline
       setypos
     } if
-  }
+  } autorepeat
   {{"KASCII" "j"} {}} {
     cursordown
-  }
+  } autorepeat
   {{"KASCII" "k"} {}} {
     cursorup
-  }
+  } autorepeat
   {{"KASCII" "l"} {}} {
     cursorright
-  }
+  } autorepeat
+  {{"KASCII" "n"} {}} {
+    do_search
+  } autorepeat
   {{"KASCII" "O"} {}} {
     0 openline
     /mode /insert store
@@ -253,14 +336,14 @@ initwtm %getcommand
   }
   {{"KASCII" "w"} {}} {
     "w" movelocation
-  }
+  } autorepeat
   {{"KASCII" "w"} {"MCtrl"}} {
     begin
       /control_w_bindings <<
-	{"KLeft"} {/l winmove}
-	{"KUp"} {/u winmove}
-	{"KDown"} {/d winmove}
-	{"KRight"} {/r winmove}
+	{"KLeft"} {/l winmove} autorepeat
+	{"KUp"} {/u winmove} autorepeat
+	{"KDown"} {/d winmove} autorepeat
+	{"KRight"} {/r winmove} autorepeat
 	{"KASCII" "c"} {
 	  getbuffsize 1 gt {closewin} {/cant_close_last_win msg setst} ifelse
 	  showwtm
@@ -273,6 +356,17 @@ initwtm %getcommand
       } {pop} ifelse
     end
   }
+
+  % meta-code that generates callbacks for 0..9:
+  begin
+    0 1 9 {
+      /i exch def
+      [["KASCII" "0123456789" i get] {}]
+      {begin /i} [i] + {def
+	/repetitions repetitions 10 * i + store
+	end /keeprepetitions 1 def} +
+    } for
+  end
   % TODO
 >> def
 
@@ -338,6 +432,12 @@ initwtm %getcommand
   }
   {{"KPageDown"} {}} {
     1 1 15 {cursordown} for
+  }
+  {{"KHome"} {}} {
+    0 setxpos
+  }
+  {{"KEnd"} {}} {
+    cursoreol % moverse al fin de línea
   }
   % TODO
 >> def
@@ -414,8 +514,10 @@ showwtm
   % stack: [key mods]
   mode /normal eq {
     dup normalkeybindings exch known {
+      /keeprepetitions 0 def
       % si está en el diccionario lo ejecuta:
       normalkeybindings exch get exec
+      keeprepetitions not {/repetitions 0 def} if
     } {pop} ifelse
   } {
     mode /insert eq {
