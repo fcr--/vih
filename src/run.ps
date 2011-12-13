@@ -54,8 +54,9 @@ initwtm %getcommand
 	      /restarted 1 def
 	      /restarting_search msg setst
 	      runnext
-	    } if
-	    /pattern_not_found msg setst
+	    } {
+	      /pattern_not_found msg setst
+	    } ifelse
 	  } ifelse
 	} ifelse
       } def
