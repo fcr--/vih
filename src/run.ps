@@ -272,29 +272,18 @@ initwtm %getcommand
     /insert_mode msg setst showwtm
   }
   {{"KASCII" "C"} {}} {
+    /clipboard "" def
     begin
       /line getypos getline def
       /x getxpos dup line length gt {pop line length} if def
-      /clipboard line x line length getinterval def
+      /clipboard line x line length getinterval store
       getypos line 0 x getinterval setline
     end
     /mode /insert store % cambio modo insert
     /insert_mode msg setst showwtm
   }
-  {{"KASCII" "d"} {}} {
-    begin
-      /del_bindings <<
-        {"KASCII" "d"} {
-          deleteline
-        } autorepeat
-      >> def
-      getkey pop
-      dup del_bindings exch known {
-	del_bindings exch get exec
-      } {pop} ifelse
-    end
-  }
   {{"KASCII" "D"} {}} {
+    /clipboard "" def
     begin
       /line getypos getline def
       getxpos line length lt {
@@ -303,6 +292,22 @@ initwtm %getcommand
 	getypos line setline
 	line length dup {1 -} if setxpos
       } if
+    end
+  }
+  {{"KASCII" "d"} {}} {
+    /clipboard {} store
+    begin
+      /del_bindings <<
+        {"KASCII" "d"} {
+	  /clipboard dup load [ getypos getline ] + store
+          deleteline
+        } autorepeat
+	% Add more options here TODO
+      >> def
+      getkey pop
+      dup del_bindings exch known {
+	del_bindings exch get exec
+      } {pop} ifelse
     end
   }
   {{"KASCII" "e"} {}} {
@@ -360,6 +365,58 @@ initwtm %getcommand
     /mode /insert store
     /insert_mode msg setst showwtm
   }
+  {{"KASCII" "P"} {}} {
+    % this is a copy of the 'p' command with a few minor modifications.
+    begin /clipboard where {
+      /clipboard load type "string" eq {
+	/x getxpos dup {1 -} if dup len gt {pop len} if def % if (xpos>len)xpos = len
+	/line getypos getline def
+	getypos
+	line 0 x getinterval
+	clipboard +
+	line x line length x - getinterval +
+	setline
+	getxpos clipboard length + setxpos
+      } {
+	/clipboard load type "list" eq {
+	  /before 1 def
+	  /clipboard load {before openline /before 0 def getypos exch setline} forall
+	} {
+	  /invalid_clipboard_type msg setst showwtm
+	} ifelse
+      } ifelse
+    } {
+      /nothing_in_clipboard msg setst showwtm
+    } ifelse end
+  } autorepeat
+  {{"KASCII" "p"} {}} {
+    % Only two cases supported:
+    %   /clipboard is a list of strings: place each string in a new line.
+    %   /clipboard is a string: place that string in the current line.
+    %   some day \n in a string could be supported.
+    /clipboard where {
+      /clipboard load type "string" eq {
+	begin
+	  /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+	  /line getypos getline def
+	  getypos
+	  line 0 x getinterval
+	  clipboard +
+	  line x line length x - getinterval +
+	  setline
+	  getxpos clipboard length + setxpos
+	end
+      } {
+	/clipboard load type "list" eq {
+	  /clipboard load {1 openline getypos exch setline} forall
+	} {
+	  /invalid_clipboard_type msg setst showwtm
+	} ifelse
+      } ifelse
+    } {
+      /nothing_in_clipboard msg setst showwtm
+    } ifelse
+  } autorepeat
   {{"KASCII" "w"} {}} {
     "w" movelocation
   } autorepeat
@@ -379,6 +436,24 @@ initwtm %getcommand
       dup control_w_bindings exch known {
 	% si está en el diccionario lo ejecuta:
 	control_w_bindings exch get exec
+      } {pop} ifelse
+    end
+  }
+  {{"KASCII" "y"} {}} {
+    /clipboard {} def
+    begin
+      /del_bindings <<
+        {"KASCII" "y"} {
+	  getypos 1 repetitions dup not {pop 1} if getypos + 1 - {
+	    /y exch def
+	    /clipboard dup load [ y getline ] + store
+	  } for
+        }
+	% Add more options here TODO
+      >> def
+      getkey pop
+      dup del_bindings exch known {
+	del_bindings exch get exec
       } {pop} ifelse
     end
   }
