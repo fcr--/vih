@@ -79,7 +79,7 @@ writeFile (Just file) buf = writeFile' file buf
 writeFile' fp buf = do
 			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
 			let buf' = buf { grammar = df, colors = mp, file = Just fp}
-			catch (S.writeFile fp (txt buf ++ '\n') >> worked df mp buf') (const $ return buf') 
+			catch (S.writeFile fp (txt buf ++ ['\n']) >> worked df mp buf') (const $ return buf') 
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
        ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fp
