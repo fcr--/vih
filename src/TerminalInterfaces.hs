@@ -83,10 +83,12 @@ deleteLine wtm = do
 --TODO: DEFINE STUFF
 wsth :: (BManager -> Int -> BManager ) -> WTManager -> WTManager
 wsth f wtm = wtm{bm = runReader (navIO (curwdw wtm) (lo wtm)) (bm wtm)}
-    where navIO (x:xs) lo = case lo of
+    where 
+		navIO (x:xs) lo = case lo of
                               (Hspan a b lst) -> navIO xs (fst (lst!!x))
                               (Vspan a b lst) -> navIO xs (fst (lst!!x))
                               (Window (x,y) z) -> ask >>= \a -> return (f a z)
+		navIO _ (Window _ z) = ask >>= \a -> return (f a z)
 
 winUp wtm = return (wsth winUpBM wtm) >>= showWTM
 winDown wtm = return (wsth winDownBM wtm) >>=  showWTM
