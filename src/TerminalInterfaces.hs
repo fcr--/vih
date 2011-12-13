@@ -157,7 +157,9 @@ toInt U = -1
 
 -- _loMove (Window _ _) xs _ = (xs,False)
 -- writeFile :: WTManager -> Maybe String -> IO WTManager
-writeFile wtm mbstr = (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (loOp writeFileBM id wtm)
+writeFile wtm mbstr = do
+			wtm <- (\(wtm,bas) -> bas mbstr >>= \c-> return (wtm{bm = c})) (loOp writeFileBM id wtm)
+                        showWTM wtm
 
 --loOp :: (BManager -> Int -> a) -> (Layout -> Layout) -> WTManager -> (WTManager,a)
 

@@ -50,9 +50,9 @@ readFile fn = do
 		let b1 = buff { grammar = df, colors = mp }
 		let (p,c,s) = contents b1
 --		associate the buffer with the file.
-		return $ b1 {contents = (map (func b1) p, (func b1) c, map (func b1) s) , file = Just fn } -- colors! ;D
+		return $ b1 {contents = (map (func df mp) p, (func df mp) c, map (func df mp) s) , file = Just fn } -- colors! ;D
   where
-  func b1 = (\(BufferLine s _) -> loadLine b1 s)
+  func df mp = (\(BufferLine s _) -> loadLine df mp s)
   noNull ls = if null ls then [""] else ls
   ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
   load :: [String] -> Buffer
@@ -66,7 +66,7 @@ emptyGrammar = parseGrammar "all = .* ; "  -- always matches, but the colors are
 -- empty buffer constructor
 
 newBuf :: Buffer
-newBuf = let ans = Buffer { contents = ([], loadLine ans [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  0 } in ans
+newBuf = let ans = Buffer { contents = ([], loadLine emptyGrammar M.empty [] ,[]), curLine = 0, curPos = 0, numLines = 1, grammar = emptyGrammar , colors = M.empty, file = Nothing, winPoint =  0 } in ans
 
 -- writeFile :: FilePath -> IO Buffer
 writeFile :: Maybe FilePath -> Buffer -> IO Buffer
@@ -78,11 +78,13 @@ writeFile (Just file) buf = writeFile' file buf
 
 writeFile' fp buf = do
 			(df,mp) <- catch (readGrammar ext) ( const $ return (emptyGrammar,M.empty) )
-			catch (S.writeFile fp (txt buf)) (const $ return ()) 
-			return $ buf { grammar = df, colors = mp, file = Just fp} -- associate the buffer with the file.
+			let buf' = buf { grammar = df, colors = mp, file = Just fp}
+			catch (S.writeFile fp (txt buf ++ '\n') >> worked df mp buf') (const $ return buf') 
  where txt :: Buffer -> String
        txt b = let (pr,c,n) = contents b in foldr1 (\x y -> x ++ "\n" ++ y) $ map unLoadLine ( reverse pr ++ [c] ++ n)
        ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fp
+       worked df mp buff  = let (l,p,s) = contents buff in return $ buff { contents = (map aux l, aux p, map aux s) }
+       		where aux = (loadLine df mp).unLoadLine
 
 
 firstLine :: Buffer -> Buffer
@@ -115,7 +117,7 @@ lineDown buff
 
 -- dd
 deleteLine :: Buffer -> Buffer
-deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine buff "",[]) }
+deleteLine buff		 	|	nl == 1		=	buff { contents =  ([],loadLine (grammar buff) (colors buff) "",[]) }
 				|	null sig	=	buff { contents = ( tail pr, head pr, sig), curLine = (cl-1), numLines =  (nl-1)}
 				|	otherwise	=	buff { contents =  ( pr, head sig, tail sig), curLine =  cl, numLines =  (nl-1)}
 	where
@@ -128,8 +130,8 @@ openLine :: Buffer -> Bool -> Buffer
 openLine buff after 	|	after		=	buff { contents = oT (contents buff), curLine = (curLine buff + 1), numLines = (numLines buff + 1) , winPoint = winPoint buff + 1} -- actually this should depend upon the dimensions of the terminal
 			|	otherwise	=	buff { contents = oF (contents buff), numLines = (numLines buff + 1) }
 	where
-		oT	=	\(prev, l, sig) -> ( l : prev, loadLine buff "", sig)
-		oF	=	\(prev, l, sig) -> ( prev , loadLine buff "", l : sig)
+		oT	=	\(prev, l, sig) -> ( l : prev, loadLine (grammar buff) (colors buff) "", sig)
+		oF	=	\(prev, l, sig) -> ( prev , loadLine (grammar buff) (colors buff) "", l : sig)
 
 -- equivalent to pressing J in normal mode of vim.
 joinLine :: Buffer -> Buffer
@@ -138,7 +140,7 @@ joinLine buff	=	doIt (contents buff)
 	where
 		doIt	= \(prev, l@(BufferLine ls _), sig) -> case sig of
 --						Non-empty line, add a space in the middle
-						(BufferLine s@(_:_) _):ss -> buff { contents = (prev, loadLine buff (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
+						(BufferLine s@(_:_) _):ss -> buff { contents = (prev, loadLine (grammar buff) (colors buff) (ls ++ (' ':s) ), ss) , numLines = (numLines buff - 1) }
 --						Empty line, consume line
 						(_:ss) -> buff { contents = (prev, l, ss) , numLines = (numLines buff - 1) }
 --						No next line... nothing
@@ -152,8 +154,8 @@ joinLine buff	=	doIt (contents buff)
 --loadLine :: String -> BufferLine
 --loadLine s = BufferLine s $ (\(Right x) -> x) $ (TestHighlighting.highlight s) -- []
 
-loadLine :: Buffer -> String -> BufferLine
-loadLine buff s = BufferLine s  $ highlight' buff s
+loadLine :: Defs -> M.Map String RH.Attr -> String -> BufferLine
+loadLine gram col s = BufferLine s  $ highlight' gram col s
 
 unLoadLine :: BufferLine -> String
 unLoadLine bl = line bl
@@ -210,11 +212,9 @@ printBuff buf cursor (w,h)	|	d > h		=	error "printBuff" -- ver en qué sublínea
 
 dummyLine w = char def_attr '' w
 -}
-highlight' :: Buffer -> String -> [Image]
-highlight' buff s	=	map f $ (\(Right x) -> x) $ pegMatch (gram M.! "all") s
+highlight' :: Defs -> M.Map String RH.Attr -> String -> [Image]
+highlight' gram col s	=	map f $ (\(Right x) -> x) $ pegMatch (gram M.! "all") s
 	where
-		gram = grammar buff
-		col = colors buff
 		f (c,xs) = (char $ RH.attr2VtyAttr $ mconcat $ map (\x -> M.findWithDefault mempty x col) xs ) c
 
 ------ Various functions ------
@@ -229,7 +229,7 @@ getLine buff = let (p,c,n) = contents buff in unLoadLine c
 
 -- Set the contents of the current line
 setLine :: String -> Buffer -> Buffer
-setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine buff cr,s) }
+setLine cr buff	=	let (p,_,s) = contents buff in	buff { contents = (p,loadLine (grammar buff) (colors buff) cr,s) }
 
 -- Get the line number of the cursor
 getLineNumber :: Buffer -> Int
