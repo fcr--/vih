@@ -272,4 +272,7 @@ splitLoX param bn l [x] |param = case l of
     where splitSpan  param bn (lo,s) t |param = (resizeLo t s (Hspan t s [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
                                        |not param = (resizeLo s t (Vspan s t [(lo,1),(Window (undefined,undefined) bn, undefined)]),t)
 
+splitLoX param bn (Window (w,h) b) _  | param     = resizeLo w h $ Hspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
+splitLoX param bn (Window (w,h) b) _  | otherwise =  resizeLo w h $ Vspan w h [(Window (w,h) b,undefined),(Window (w,h) bn,undefined)]
+
 -- vi: et sw=4
