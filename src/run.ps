@@ -353,9 +353,12 @@ initwtm %getcommand
   } if
   % stacks ejemplo: {} ":q", {"archivo"} ":w"
   <<
-    ":q" {getbuffsize 1 gt {closewin showwtm} {quit} ifelse}
+    ":q" {pop getbuffsize 1 gt {closewin showwtm} {quit} ifelse}
     ":e" {dup {} eq {{""} +} if exec openfile}
+    ":new" {/vert newwin dup {} eq {pop} {exec openfile} ifelse}
+    ":vnew" {/horiz newwin dup {} eq {pop} {exec openfile} ifelse}
     ":w" {writefile}
+    ":wq" {writefile getbuffsize 1 gt {closewin showwtm} {quit} ifelse}
     % TODO
   >> exch
   2 copy known {
