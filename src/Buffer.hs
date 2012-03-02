@@ -54,7 +54,7 @@ readFile fn = do
   where
   func df mp = (\(BufferLine s _) -> loadLine df mp s)
   noNull ls = if null ls then [""] else ls
-  ext = (\xs -> if null xs then xs else tail xs) . snd . break (=='.') $ fn 
+  ext = if elem '.' fn then (reverse . fst . break (=='.') . reverse) fn else ""
   load :: [String] -> Buffer
   load ls = Buffer { contents = ([], head lines, tail lines),
 		     curLine = 0, curPos = 0, numLines = length lines, grammar = emptyGrammar, colors = M.empty , file = Nothing, winPoint = 0 }

@@ -207,7 +207,7 @@ psNewState = newTVarIO bm >>= \v -> return $ PSState {
         (">>", psOpCreateDict), ("length", psOpLength), ("null", psOpNull),
         ("def", psOpDef),       ("get", psOpGet),       ("known", psOpKnown),
         ("load", psOpLoad),     ("put", psOpPut),       ("store", psOpStore),
-        ("undef", psOpUndef),   ("where", psOpWhere),
+        ("undef", psOpUndef),   ("where", psOpWhere),   {-("bind", psOpBind),-}
         ("begin", psOpBegin),   ("end", psOpEnd),
         ("head", psOpHead),     ("tail", psOpTail),     ("getinterval", psOpGetinterval),
         ("regexp", psOpRegexp), ("regsub", psOpRegsub), ("search", psOpSearch),
@@ -594,6 +594,21 @@ psOpWhere st = ensureNArgs "where" 1 st $ case find (dictStack st ++ [globDict s
     find (d:ds) = if M.member key d then Just d else find ds
     find [] = Nothing
 
+{-
+psOpBind :: PSState -> IO (Either String PSState)
+psOpBind st = ensureNArgs "bind" 1 st $ return $ case stack st of
+    (PSList code : ss) -> Right $ st {stack = bind code : ss}
+    _ -> Left "psInterp error: bind: not a list (code) on top of the stack"
+    where
+    bind :: PSObject -> PSObject
+    bind (PSList c) = PSList $ map bind c
+    bind obj@(PSName False n) = fromMaybe obj $ find n dicts -- non literal name
+    bind obj = obj
+    dicts = dictStack st ++ [globDict st]
+    find n (d:ds) = if M.member n d then Just d else find ds
+    find [] = Nothing
+-}
+
 psOpBegin :: PSState -> IO (Either String PSState)
 psOpBegin st = return $ Right st { dictStack = M.empty : dictStack st }
 
@@ -897,13 +912,13 @@ main = do
     -- on windows: C:/Documents And Settings/user/Application Data/appName (or something like that)
     home <- getAppUserDataDirectory "vih"
 
-    st' <- psExecFile st "init.ps"
-    case st' of Left err -> putStrLn err >> exitFailure; _ -> return ()
-    let st1 = case st' of Left _ -> st; Right s -> s
+    --st' <- psExecFile st "init.ps"
+    --case st' of Left err -> putStrLn err >> exitFailure; _ -> return ()
+    --let st1 = case st' of Left _ -> st; Right s -> s
 
-    st1'<- psExecFile st1 "/etc/init.ps"
+    st1'<- psExecFile st "/etc/init.ps"
     case st1' of Left err -> putStrLn err >> exitFailure; _ -> return ()
-    let st2 = case st1' of Left _ -> st1; Right s -> s
+    let st2 = case st1' of Left _ -> st; Right s -> s
 
     -- only the user script may fail:
     st2'<- psExecFile st2 $ joinPath [home, "init.ps"]
@@ -913,7 +928,7 @@ main = do
     case st3' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st4 = case st3' of Left _ -> st3; Right s -> s
 
-    st4'<- psExecFile st4 "./run.ps"
+    st4'<- psExecFile st4 $ joinPath [home, "run.ps"]
     case st4' of Left err -> putStrLn err >> exitFailure; _ -> return ()
     let st5 = case st4' of Left _ -> st4; Right s -> s
 
