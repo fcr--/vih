@@ -4,7 +4,7 @@ comment = "--" (todo / !'
 multicomment = "{-" ("--" / todo / multicomment / !("-}").)* "-}" ? ;
 todo = "TODO" ;
 string =   (! "\\" ) '"' (!'"'.)* '"' (! "\\" );
-reserved  = '=' / '|' / ".." / "::" / '@' /  '~' / "->" / "<-" /  words;
+reserved  = '=' '='? / '|' / ".." / "::" / '@' /  '~' / "->" / "<-" /  words;
 words = "case" / "class" / "data" / "default" / "deriving" / "do"
       / "mdo" / "else" / "forall" / "foreign" / "hiding" / "if"
       / "import" / "instance" / "infixl" / "infixr" / "infix"
