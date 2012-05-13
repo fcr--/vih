@@ -551,7 +551,7 @@ initwtm %getcommand
 >> def
 
 /interpcommand {
-  [] exch " " search {
+  {} exch " " search {
     % caso true, queda en stack: post match pre
     exch pop exch % stack: pre post
     [ exch ] % stack: [] pre [post]
