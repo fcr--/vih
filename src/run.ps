@@ -34,31 +34,31 @@ initwtm %getcommand
       /x getxpos def
       /y getypos def
       /runnext {
-	/line y getline def
-	/x x first {1 +} if dup line length gt {pop line length} if def
-	last_search
-	line x line length getinterval
-	regexp dup 0 ge {
-	  pop % discard the top value, keep the other
-	  /x exch x + def
-	  y setypos
-	  x setxpos
-	} {
-	  pop
-	  % try with next line if it exists
-	  /x 0 def
-	  /y y 1 + def
-	  y getysize lt {/first 0 def runnext} {
-	    restarted not {
-	      /y 0 def
-	      /restarted 1 def
-	      /restarting_search msg setst
-	      runnext
-	    } {
-	      /pattern_not_found msg setst
-	    } ifelse
-	  } ifelse
-	} ifelse
+        /line y getline def
+        /x x first {1 +} if dup line length gt {pop line length} if def
+        last_search
+        line x line length getinterval
+        regexp dup 0 ge {
+          pop % discard the top value, keep the other
+          /x exch x + def
+          y setypos
+          x setxpos
+        } {
+          pop
+          % try with next line if it exists
+          /x 0 def
+          /y y 1 + def
+          y getysize lt {/first 0 def runnext} {
+            restarted not {
+              /y 0 def
+              /restarted 1 def
+              /restarting_search msg setst
+              runnext
+            } {
+              /pattern_not_found msg setst
+            } ifelse
+          } ifelse
+        } ifelse
       } def
       runnext
     end
@@ -120,14 +120,14 @@ initwtm %getcommand
       x 0 eq  first not and {".*?\\w"} {".*?\\W\\w"} ifelse
       line x line length getinterval
       regexp dup 0 ge {
-	exch pop % keep the top value, discard the other
-	/x exch x + 1 - def
+        exch pop % keep the top value, discard the other
+        /x exch x + 1 - def
       } {
-	pop
-	% try with next line if it exists
-	/x 0 def
-	/y y 1 + def
-	y getysize lt {/first 0 def runnext} {/move 0 def} ifelse
+        pop
+        % try with next line if it exists
+        /x 0 def
+        /y y 1 + def
+        y getysize lt {/first 0 def runnext} {/move 0 def} ifelse
       } ifelse
     } def
     runnext
@@ -139,14 +139,14 @@ initwtm %getcommand
       ".*?\\w\\b"
       line x line length getinterval
       regexp dup 0 ge {
-	exch pop % keep the top value, discard the other
-	/x exch x + 1 - def
+        exch pop % keep the top value, discard the other
+        /x exch x + 1 - def
       } {
-	pop
-	% try with next line if it exists
-	/x 0 def
-	/y y 1 + def
-	y getysize lt {runnext} {/move 0 def} ifelse
+        pop
+        % try with next line if it exists
+        /x 0 def
+        /y y 1 + def
+        y getysize lt {runnext} {/move 0 def} ifelse
       } ifelse
     } def
     runnext
@@ -287,10 +287,10 @@ initwtm %getcommand
     begin
       /line getypos getline def
       getxpos line length lt {
-	/clipboard line getxpos line length getinterval def
-	/line line 0 getxpos getinterval def
-	getypos line setline
-	line length dup {1 -} if setxpos
+        /clipboard line getxpos line length getinterval def
+        /line line 0 getxpos getinterval def
+        getypos line setline
+        line length dup {1 -} if setxpos
       } if
     end
   }
@@ -299,14 +299,14 @@ initwtm %getcommand
     begin
       /del_bindings <<
         {"KASCII" "d"} {
-	  /clipboard dup load [ getypos getline ] + store
+          /clipboard dup load [ getypos getline ] + store
           deleteline
         } autorepeat
-	% Add more options here TODO
+        % Add more options here TODO
       >> def
       getkey pop
       dup del_bindings exch known {
-	del_bindings exch get exec
+        del_bindings exch get exec
       } {pop} ifelse
     end
   }
@@ -316,6 +316,9 @@ initwtm %getcommand
   {{"KASCII" "e"} {"MCtrl"}} {
     windown
   } autorepeat
+  {{"KASCII" "G"} {}} {
+    getysize 1 - setypos
+  }
   {{"KASCII" "h"} {}} {
     cursorleft
   } autorepeat
@@ -369,21 +372,21 @@ initwtm %getcommand
     % this is a copy of the 'p' command with a few minor modifications.
     begin /clipboard where {
       /clipboard load type "string" eq {
-	/x getxpos dup {1 -} if dup len gt {pop len} if def % if (xpos>len)xpos = len
-	/line getypos getline def
-	getypos
-	line 0 x getinterval
-	clipboard +
-	line x line length x - getinterval +
-	setline
-	getxpos clipboard length + setxpos
+        /x getxpos dup {1 -} if dup len gt {pop len} if def % if (xpos>len)xpos = len
+        /line getypos getline def
+        getypos
+        line 0 x getinterval
+        clipboard +
+        line x line length x - getinterval +
+        setline
+        getxpos clipboard length + setxpos
       } {
-	/clipboard load type "list" eq {
-	  /before 1 def
-	  /clipboard load {before openline /before 0 def getypos exch setline} forall
-	} {
-	  /invalid_clipboard_type msg setst showwtm
-	} ifelse
+        /clipboard load type "list" eq {
+          /before 1 def
+          /clipboard load {before openline /before 0 def getypos exch setline} forall
+        } {
+          /invalid_clipboard_type msg setst showwtm
+        } ifelse
       } ifelse
     } {
       /nothing_in_clipboard msg setst showwtm
@@ -396,22 +399,22 @@ initwtm %getcommand
     %   some day \n in a string could be supported.
     /clipboard where {
       /clipboard load type "string" eq {
-	begin
-	  /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
-	  /line getypos getline def
-	  getypos
-	  line 0 x getinterval
-	  clipboard +
-	  line x line length x - getinterval +
-	  setline
-	  getxpos clipboard length + setxpos
-	end
+        begin
+          /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+          /line getypos getline def
+          getypos
+          line 0 x getinterval
+          clipboard +
+          line x line length x - getinterval +
+          setline
+          getxpos clipboard length + setxpos
+        end
       } {
-	/clipboard load type "list" eq {
-	  /clipboard load {1 openline getypos exch setline} forall
-	} {
-	  /invalid_clipboard_type msg setst showwtm
-	} ifelse
+        /clipboard load type "list" eq {
+          /clipboard load {1 openline getypos exch setline} forall
+        } {
+          /invalid_clipboard_type msg setst showwtm
+        } ifelse
       } ifelse
     } {
       /nothing_in_clipboard msg setst showwtm
@@ -423,20 +426,20 @@ initwtm %getcommand
   {{"KASCII" "w"} {"MCtrl"}} {
     begin
       /control_w_bindings <<
-	{"KLeft"} {/l winmove} autorepeat
-	{"KUp"} {/u winmove} autorepeat
-	{"KDown"} {/d winmove} autorepeat
-	{"KRight"} {/r winmove} autorepeat
-	{"KASCII" "c"} {
-	  getbuffsize 1 gt {closewin} {/cant_close_last_win msg setst} ifelse
-	  showwtm
-	}
-	{"KASCII" "w"} {winrotate} autorepeat
+        {"KLeft"} {/l winmove} autorepeat
+        {"KUp"} {/u winmove} autorepeat
+        {"KDown"} {/d winmove} autorepeat
+        {"KRight"} {/r winmove} autorepeat
+        {"KASCII" "c"} {
+          getbuffsize 1 gt {closewin} {/cant_close_last_win msg setst} ifelse
+          showwtm
+        }
+        {"KASCII" "w"} {winrotate} autorepeat
       >> def
       getkey pop
       dup control_w_bindings exch known {
-	% si está en el diccionario lo ejecuta:
-	control_w_bindings exch get exec
+        % si está en el diccionario lo ejecuta:
+        control_w_bindings exch get exec
       } {pop} ifelse
     end
   }
@@ -445,16 +448,16 @@ initwtm %getcommand
     begin
       /del_bindings <<
         {"KASCII" "y"} {
-	  getypos 1 repetitions dup not {pop 1} if getypos + 1 - {
-	    /y exch def
-	    /clipboard dup load [ y getline ] + store
-	  } for
+          getypos 1 repetitions dup not {pop 1} if getypos + 1 - {
+            /y exch def
+            /clipboard dup load [ y getline ] + store
+          } for
         }
-	% Add more options here TODO
+        % Add more options here TODO
       >> def
       getkey pop
       dup del_bindings exch known {
-	del_bindings exch get exec
+        del_bindings exch get exec
       } {pop} ifelse
     end
   }
@@ -468,8 +471,8 @@ initwtm %getcommand
       /i exch def
       [["KASCII" "0123456789" i get] {}]
       {begin /i} [i] + {def
-	/repetitions repetitions 10 * i + store
-	end /keeprepetitions 1 def} +
+        /repetitions repetitions 10 * i + store
+        end /keeprepetitions 1 def} +
     } for
   end
   % TODO
@@ -496,11 +499,11 @@ initwtm %getcommand
       1 openline
       % set the text behind the cursor in the current line:
       getypos 1 -
-	line 0 x getinterval
+        line 0 x getinterval
       setline
       % set the text after the cursor to the new line:
       getypos
-	line x  len x -  getinterval
+        line x  len x -  getinterval
       setline
       0 setxpos
     end
@@ -509,16 +512,16 @@ initwtm %getcommand
     % estoy al comienzo de la línea?
     getxpos 0 eq {
       getypos 0 gt { % solo actúo si no estoy en la primer línea.
-	begin
-	  /yp getypos 1 - def
-	  /lp yp getline def
-	  yp
-	    lp  getypos getline + % uno la línea previa y la actual
-	  setline
-	  deleteline
-	  yp setypos
-	  lp length setxpos % ubico el cursor al final de la línea previa.
-	end
+        begin
+          /yp getypos 1 - def
+          /lp yp getline def
+          yp
+            lp  getypos getline + % uno la línea previa y la actual
+          setline
+          deleteline
+          yp setypos
+          lp length setxpos % ubico el cursor al final de la línea previa.
+        end
       } if
     } {
       % hay texto a la izquierda, simplemente borro
@@ -526,8 +529,8 @@ initwtm %getcommand
       /len line length def
       /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
       getypos
-	line 0  x 1 -  getinterval
-	line x  len x -  getinterval + % concat from x, len-x chars.
+        line 0  x 1 -  getinterval
+        line x  len x -  getinterval + % concat from x, len-x chars.
       setline
       x 1 - setxpos
     } ifelse
@@ -582,24 +585,24 @@ initwtm %getcommand
       /cont 0 def
       % -s file:
       prev "-s" eq {
-	/cont 1 def
-	opt run
+        /cont 1 def
+        opt run
       } if
       cont not  opt "-s" eq and {/cont 1 def} if
       % --help / -h
       cont not  opt "--help" eq opt "-h" eq or and {
-	/cont 1 def
-	0 /options msg setline
-	% TODO check for new file
+        /cont 1 def
+        0 /options msg setline
+        % TODO check for new file
       } if
       % otherwise load file:
       cont not {
-	first {
-	  /first 0 def
-	} {
-	  /vert newwin
-	} ifelse
-	opt openfile
+        first {
+          /first 0 def
+        } {
+          /vert newwin
+        } ifelse
+        opt openfile
       } if
       % the only supported option is -s to load a script:
       /prev opt def
@@ -628,35 +631,35 @@ showwtm
     mode /insert eq {
       dup 0 get 0 get % stack: [key mods]
       "KASCII" eq {
-	begin
-	  dup 0 get 1 get % stack: [key mods] char
-	  /line getypos getline def
-	  /len line length def
-	  /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
-	  /char exch
-	    % "\t" exception: move cursor to multiple of shift_width:
-	    dup "\t" eq {
-	      % add shift_width - (x `mod` shift_width) spaces
-	      pop "" 1 1 shift_width x shift_width mod - {pop " " +} for
-	    } if
-	    def
-	  getypos
-	  line 0 x getinterval
-	  char +
-	  line x  len x -  getinterval + % concat from x, len-x chars.
-	  setline
-	  x char length + setxpos
-	end
-	% stack: [key mods] key
+        begin
+          dup 0 get 1 get % stack: [key mods] char
+          /line getypos getline def
+          /len line length def
+          /x getxpos dup len gt {pop len} if def % if (xpos>len)xpos = len
+          /char exch
+            % "\t" exception: move cursor to multiple of shift_width:
+            dup "\t" eq {
+              % add shift_width - (x `mod` shift_width) spaces
+              pop "" 1 1 shift_width x shift_width mod - {pop " " +} for
+            } if
+            def
+          getypos
+          line 0 x getinterval
+          char +
+          line x  len x -  getinterval + % concat from x, len-x chars.
+          setline
+          x char length + setxpos
+        end
+        % stack: [key mods] key
       } if
       dup insertkeybindings exch known {
-	% si está en el diccionario lo ejecuta:
-	dup insertkeybindings exch get exec
+        % si está en el diccionario lo ejecuta:
+        dup insertkeybindings exch get exec
       } if
       dup 0 get 0 get "KEsc" eq {
-	/mode /normal store
-	"" setst showwtm
-	cursorleft
+        /mode /normal store
+        "" setst showwtm
+        cursorleft
       } if
       % stack: [key mods]
     } if % Add other modes, TODO
