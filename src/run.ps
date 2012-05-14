@@ -664,5 +664,8 @@ showwtm
       % stack: [key mods]
     } if % Add other modes, TODO
     pop
-  } ifelse % mode /normal eq
+  } {ifelse} try % mode /normal eq
+  dup length {
+    "Error: " exch + setst showwtm
+  } {pop} ifelse
 } loop
