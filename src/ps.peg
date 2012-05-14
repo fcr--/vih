@@ -7,9 +7,9 @@ string = '"' ('\\' . / !'"' .)* '"';
 name = '/' word;
 words = ("*" / "+" / "-" / "<<" / ">>" / "[" / "]"
 / "and" / "begin"
-/ 'c'("losewin" "opy" "ount" "urrentdict")
-/ 'd'("ef" "eleteline" "iv" "up")
-/ 'e'("nd" "q" "xch" "xec" "xit")
+/ 'c'("losewin" / "opy" / "ount" / "urrentdict")
+/ 'd'("ef" / "eleteline" / "iv" / "up")
+/ 'e'("nd" / "q" / "xch" / "xec" / "xit")
 / "for" ("all")?
 / "get" ("buffsize" / "command" / "interval" / "key" / "line" / "xpos" / "xsize" / "ypos" / "ysize")?
 / 'g'('e'/'t')
