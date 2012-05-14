@@ -53,6 +53,7 @@ Operators (sorted by section):
   exit:	- exit -
   exec:	proc exec -
   try:	proc try errmsg
+  quit:	- quit -
 
 Operators (sorted by name):
 
