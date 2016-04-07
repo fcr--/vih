@@ -1,0 +1,96 @@
+# Guía de usuario de ViH (Vi en Haskell)
+:toc:
+:toc-placement!:
+
+toc::[]
+
+== Configuración.
+
+El editor de texto es configurable por medio de código PostScript. Mediante el mismo es posible redefinir variables, símbolos en los diccionarios, etc. Vea PSvi.txt para más detalles acerca de la sintaxis, los operadores definidos y su semántica.
+
+Se intentarán cargar los siguientes archivos en el orden indicado, permitiendo que uno posterior redefina variables sobre el anterior:
+
+  * `./init.ps`: Utilizado durante el desarrollo, se recomienda cambiarlo por `/usr/lib/vih/init.ps`, o por la ruta adecuada dependiendo del sistema, en PSvi.hs, por ejemplo al empaquetar para una distro. Aquí se definen los valores iniciales de variables y diccionarios.
+  * `/etc/init.ps`: Cuando se desea hacer una instalación global, es recomendable colocar  aquí los parámetros de configuración globales.
+  * `~/.init.ps`: Utilizado para especificar las preferencias personales del usuario. Si se desea agregar otro archivo a cargar, por ejemplo al realizar una instalación local, se puede usar el operador run, pasándole el nombre del archivo en el stack.
+  * `/etc/run.ps`: Llegado al caso que en el sistema se quisiesen definir reglas globales basadas en lo que configura el usuario en su init, este sería el archivo adecuado.
+  * `./run.ps`: Aquí se encuentra la parte de la lógica que interpreta las teclas ingresadas, llamando en cada caso al diccionario correspondiente. Similar al `./init.ps` inicial, recomendamos cambiar la ruta de este archivo al empaquetar.
+
+Algunos parámetros a modificar en los `~/init.ps` y `/etc/init.ps` son los siguientes:
+
+  * `/chosen_messages`: Idioma de mensajes a mostrar. Puede ser un diccionario con los mapeos entre los nombres simbólicos y los textos para cada mensaje. Ya vienen definidos por omisión los diccionarios para español (messages_es), inglés (messages_en) y japonés (messages_ja).
+  * `/shift_width`: Cantidad de espacios por los que se substituirá cada tabulador al apretar la tecla. Más precisamente no se insertarán exactamente shift_width espacios, sino que se insertarán espacios hasta llegar a la próxima columna múltiplo de shift_width.
+
+Para modificar el contenido de los diccionarios es posible realizar lo siguiente:
+
+```postscript
+	/el_diccionario
+	  el_diccionario
+	  key value put
+	  ...
+	store
+```
+
+Queda como fácil ejercicio al lector, la modificación del código previo a fin de unir dos diccionarios (pista: utilizar `forall`).
+
+Los diccionarios también son utilizados para permitir la personalización de las acciones relacionadas a eventos del teclado, los _key bindings_. Se define entonces un diccionario distinto para cada modo:
+
+  * `/locationbindings`: Esto permitirá en un futuro definir el comportamiento de cada uno de los modificadores para 'c', 'd', 'y', etc... Las keys son siempre el string que representa al modificador, como "$" (para indicar fin de línea); y los values son objetos de código (o sea listas), que se ejecutarán en un stack frame con los siguientes símbolos definidos en él:
+  ** `x`, `y`: Con las coordenadas actuales del cursor. El procedimiento deberá actualizar estas variables a las nuevas posiciones si el modificador se realiza exitosamente.
+  ** `move`: Con valor 1 por omisión, deberá ser seteado a 0 si el modificador falla, por ejemplo en el modificador "t" cuando no se encuentra la letra a buscar.
+  * `/normalkeybindings`: En este diccionario las keys son una lista compuesta por los dos valores que devuelve el operador getkey, los distintos tipos de teclas se pueden ver en la implementación de este operador. Y los values serían el código asociado a la tecla correspondiente.
+  * `/insertkeybindings`: Este otro diccionario es análogo a normalkeybindings, pero con la principal diferencia de que los eventos "KASCII" no son consultados en el diccionario, sino que son directamente atendidos por una rutina específica para el modo de inserción.
+
+== Teclas en modo normal.
+
+Se marcan con (R) las teclas que admiten un cuantificador como prefijo.
+
+* KLeft(R), KDown(R), KUp(R), KLeft(R), KRight(R), h(R), j(R), k(R), l(R): Permiten el movimiento del cursor.
+* KEnter(R): Ubica el cursor en el primer caracter no-espacio de la siguiente línea.
+* KBS(R) (back-space): Mueve el cursor al caracter anterior en el archivo.
+* KPageUp(R), KPageDown(R): Mueve de a veinte líneas hacia arriba y abajo.
+* KHome, KEnd: Mueve al principio y final de la linea.
+* «:»: Permite ingresar en el modo de órdenes.
+* «^»: Mueve el cursor a la primer posición distinta de espacio en blanco en la línea.
+* «$»: Mueve el cursor al final de la línea.
+* «/»: Permite realizar una búsqueda mediante una expresión regular. Para la búsqueda de expresiones regulares se utiliza la biblioteca PCRE (Perl Compatible Regular Expressions), cuya documentación se encuentra aquí: http://perldoc.perl.org/perlre.html.
+* «A»: Ubica el cursor al final de la línea y pasa a modo inserción.
+* «a»: Mueve el cursor a la derecha y pasa a modo inserción.
+* «C»: Borra desde el cursor hasta el final de la línea, dejando en el portapapeles el texto borrado y pasando al modo inserción.
+* «D»: Borra desde el cursor hasta el final de la línea, dejando en el portapapeles el texto borrado.
+* «dd»(R): Borra líneas enteras copiándolas al portapapeles.
+* «e»(R): Se desplaza al final de la palabra.
+* «^E»(R) (Control e): Hace scroll (hacia abajo) del buffer una línea, dejando el cursor en la misma posición.
+* «I»: Mueve el cursor a la primer posición distinta de espacio en blanco en la línea, y pasa a modo inserción.
+* «i»: Pasa a modo inserción.
+* «J»(R): Une la línea actual con la próxima línea, colocando un espacio en blanco entre medio.
+* «n»(R): Ubica el cursor sobre el siguiente resultado para la última expresión regular buscada.
+* «O»: Coloca una línea vacía encima de la línea actual, mueve el cursor hacia esa línea y pasa a modo inserción.
+* «o»: Coloca una línea vacía debajo de la línea actual, mueve el cursor hacia esa línea y pasa a modo inserción.
+* «P»(R): Pega el contenido del portapapeles antes del cursor. Si el portapapeles tiene una lista de líneas copiadas, crea líneas nuevas. En caso contrario pega sobre la propia línea.
+* «p»(R): Pega el contenido del portapapeles después del cursor. Si el portapapeles tiene una lista de líneas copiadas, crea líneas nuevas. En caso contrario pega sobre la propia línea.
+* «w»(R): Mueve el cursor al comienzo de la próxima palabra.
+* «^W» (Control w): Permite el movimiento entre ventanas. Tras presionar esta tecla se deberá apretar la tecla modificadora, para las cuales se implementan:
+** KUp(R): mueve a la ventana que se encuentra arriba.
+** KDown(R): mueve a la ventana que se encuentra abajo.
+** KLeft(R): mueve a la ventana que se encuentra a la izquierda.
+** KRight(R): mueve a la ventana que se encuentra a la derecha.
+** «c»(R): Cierra la ventana actual sin salir del programa.
+** «w»(R): mueve a la próxima ventana, volviendo a la primera si previamente se encontraba en la última.
+* «yy»(R): Copia la línea actual al portapapeles (y las siguientes si se especificó un número de repeticiones).
+* «^Y»(R) (Control y): Hace scroll (hacia abajo) del buffer una línea, dejando el cursor en la misma posición.
+* «0» a «9»: Permiten indicar la cantidad de veces que se realizará el comando a continuación. Solo soportan repetición aquellos comandos para los cuales se menciona específicamente tal cualidad mediante una (R).
+
+Más todas teclas las que el usuario agregue.
+
+== Teclas en modo inserción.
+Para el modo inserción vienen habilitadas por omisión:
+
+* KLeft, KDown, KUp, KLeft, KRight: Permiten el movimiento del cursor.
+* KEnter: Corta la línea actual en dos partes, por donde se encuentra el cursor; dejando en la línea original el texto previo, y en la siguiente el resto.
+* KBS (back-space): Elimina el caracter previo al caracter actual, uniendo la línea actual con la previa si el cursor llegase a estar sobre el primer caracter de la columna.
+* KPageUp, KPageDown: Mueve de a veinte líneas hacia arriba y abajo.
+* KHome, KEnd: Mueve al principio y final de la linea.
+
+== Referencia del intérprete de PostScript.
+Vea el archivo PSvi.hs.
